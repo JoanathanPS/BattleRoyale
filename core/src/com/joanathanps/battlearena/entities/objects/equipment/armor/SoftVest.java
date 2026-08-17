@@ -1,0 +1,31 @@
+package com.joanathanps.battlearena.entities.objects.equipment.armor;
+
+import com.joanathanps.battlearena.entities.Soldier;
+import com.joanathanps.battlearena.graphics.ResourceHandler;
+import com.joanathanps.battlearena.scenes.Match;
+
+public class SoftVest extends Armor {
+
+    public SoftVest(Match match) {
+        super(match);
+        setAttributes();
+    }
+
+    @Override
+    public void updateName() {
+        setName(getI18n().getBundle().get("softVest") + " (" + getArmorPoints() + "%)");
+    }
+
+    @Override
+    public boolean transformSoldier(Soldier soldier) {
+        return false;
+    }
+
+    private void setAttributes() {
+        setIcon(getResources().getTexture(ResourceHandler.TexturePath.SOFT_VEST));
+        setArmorPoints(20);
+        takeDamage(0);
+        setRarity(12);
+        updateName();
+    }
+}
