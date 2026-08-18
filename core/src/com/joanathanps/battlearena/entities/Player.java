@@ -15,8 +15,15 @@ import static com.joanathanps.battlearena.scheme.PhysicsAdapter.*;
 
 public class Player extends Soldier {
 
+    private static final float SPRINT_MULTIPLIER = 1.7f;
+    private static final float STAMINA_DRAIN_RATE = 22f;
+    private static final float STAMINA_REGEN_RATE = 13f;
+    private static final float MAX_STAMINA = 100f;
+
     private boolean actionsBlocked;
     private boolean actionsSemiBlocked;
+    private float stamina = MAX_STAMINA;
+    private boolean isSprinting;
 
     public Player(Match match, float radius, float linearDamping, int speed, Vector2 position) {
         super(match, position, radius, linearDamping, speed, AnimationRegion.SOLDIER, PLAYER_TAG,
@@ -79,10 +86,16 @@ public class Player extends Soldier {
                 directionY -= getSpeed();
             }
 
-            if (directionX != 0 || directionY != 0) {
+            boolean isMoving = directionX != 0 || directionY != 0;
+            isSprinting = isMoving && InputTracker.isShiftHeld() && stamina > 0;
+            updateStamina(delta);
+            float moveMultiplier = isSprinting ? SPRINT_MULTIPLIER : 1f;
+
+            if (isMoving) {
                     Vector2 normalizedDirection = new Vector2(directionX, directionY).nor();
                     getBody().applyForce(
-                            new Vector2(normalizedDirection.x * getSpeed(), normalizedDirection.y * getSpeed()),
+                            new Vector2(normalizedDirection.x * getSpeed() * moveMultiplier,
+                                    normalizedDirection.y * getSpeed() * moveMultiplier),
                             getBody().getWorldCenter(),
                             true
                     );
@@ -123,6 +136,26 @@ public class Player extends Soldier {
 
     public void blockActions() {
         actionsBlocked = true;
+    }
+
+    private void updateStamina(float delta) {
+        if (isSprinting) {
+            stamina = Math.max(0, stamina - STAMINA_DRAIN_RATE * delta);
+        } else {
+            stamina = Math.min(MAX_STAMINA, stamina + STAMINA_REGEN_RATE * delta);
+        }
+    }
+
+    public float getStamina() {
+        return stamina;
+    }
+
+    public float getMaxStamina() {
+        return MAX_STAMINA;
+    }
+
+    public boolean isSprinting() {
+        return isSprinting;
     }
 
     public void slowDown() {

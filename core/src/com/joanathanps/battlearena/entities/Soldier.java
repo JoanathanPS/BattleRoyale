@@ -1,5 +1,6 @@
 package com.joanathanps.battlearena.entities;
 
+import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.math.Vector2;
@@ -208,7 +209,10 @@ public abstract class Soldier extends Entity {
         } else {
             health -= bullet.getWeapon().getDamage();
             if (health <= 0) {
-                bullet.getWeapon().getLastSoldierToShoot().accountKill();
+                Soldier killer = bullet.getWeapon().getLastSoldierToShoot();
+                killer.accountKill();
+                Gdx.app.log("COMBAT", (killer instanceof Player ? "PLAYER" : "BOT")
+                        + " KILLED " + (this instanceof Player ? "PLAYER" : "BOT"));
             }
         }
     }

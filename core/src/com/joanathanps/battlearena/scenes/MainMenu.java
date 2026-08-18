@@ -7,18 +7,20 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.*;
+import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.utils.Timer;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
 import com.joanathanps.battlearena.BattleRoyaleArenaLite;
-import com.joanathanps.battlearena.database.DatabaseManager;
+import com.joanathanps.battlearena.database.MatchResultsRepository;
 import com.joanathanps.battlearena.events.InputTracker;
 import com.joanathanps.battlearena.graphics.FontGenerator;
 import com.joanathanps.battlearena.graphics.ResourceHandler;
 import com.joanathanps.battlearena.gui.LeaderboardScreen;
 import com.joanathanps.battlearena.languages.Internationalization;
+import com.joanathanps.battlearena.scheme.Difficulty;
 
 import static com.joanathanps.battlearena.scheme.PhysicsAdapter.pCenter;
 import static com.joanathanps.battlearena.scheme.PlayerSettings.GAME_HEIGHT;
@@ -46,6 +48,9 @@ public class MainMenu implements Screen {
     private Label loadingLabel;
     private Image gameIcon;
 
+    private Difficulty selectedDifficulty = Difficulty.MEDIUM;
+    private ButtonGroup<TextButton> difficultyGroup;
+
     // rendering
     private OrthographicCamera camera;
     private Viewport viewport;
@@ -57,6 +62,17 @@ public class MainMenu implements Screen {
         setupCursor();
         forgeMenu();
         forgeLoadingScreen();
+        if (Boolean.getBoolean("bral.autodemo")) {
+            String demoDifficulty = System.getProperty("bral.autodemo.difficulty", "MEDIUM");
+            final Difficulty difficulty = Difficulty.valueOf(demoDifficulty);
+            Gdx.app.postRunnable(new Runnable() {
+                @Override
+                public void run() {
+                    BattleRoyaleArenaLite game = (BattleRoyaleArenaLite) Gdx.app.getApplicationListener();
+                    game.setScreen(new Match(batch, difficulty));
+                }
+            });
+        }
     }
 
     private void loadResources() {
@@ -111,7 +127,7 @@ public class MainMenu implements Screen {
                     @Override
                     public void run() {
                         BattleRoyaleArenaLite game = (BattleRoyaleArenaLite)Gdx.app.getApplicationListener();
-                        game.setScreen(new Match(batch));
+                        game.setScreen(new Match(batch, selectedDifficulty));
                     }
                 }, 1);
             }
@@ -128,12 +144,52 @@ public class MainMenu implements Screen {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 BattleRoyaleArenaLite game = (BattleRoyaleArenaLite)Gdx.app.getApplicationListener();
-                DatabaseManager dbManager = game.getDbManager();
-                if (dbManager != null && dbManager.isConnected()) {
-                    game.setScreen(new LeaderboardScreen(dbManager));
+                MatchResultsRepository repository = game.getMatchResultsRepository();
+                if (repository != null) {
+                    game.setScreen(new LeaderboardScreen(repository));
                 }
             }
         });
+
+        TextButton easyButton = new TextButton("EASY", skin, "white-button");
+        TextButton mediumButton = new TextButton("MEDIUM", skin, "white-button");
+        TextButton hardButton = new TextButton("HARD", skin, "white-button");
+
+        difficultyGroup = new ButtonGroup<TextButton>(easyButton, mediumButton, hardButton);
+        difficultyGroup.setMinCheckCount(1);
+        difficultyGroup.setMaxCheckCount(1);
+        mediumButton.setChecked(true);
+
+        easyButton.addListener(new ChangeListener() {
+            @Override
+            public void changed(ChangeEvent event, com.badlogic.gdx.scenes.scene2d.Actor actor) {
+                if (easyButton.isChecked()) {
+                    selectedDifficulty = Difficulty.EASY;
+                    refreshDifficultyButtons(easyButton);
+                }
+            }
+        });
+        mediumButton.addListener(new ChangeListener() {
+            @Override
+            public void changed(ChangeEvent event, com.badlogic.gdx.scenes.scene2d.Actor actor) {
+                if (mediumButton.isChecked()) {
+                    selectedDifficulty = Difficulty.MEDIUM;
+                    refreshDifficultyButtons(mediumButton);
+                }
+            }
+        });
+        hardButton.addListener(new ChangeListener() {
+            @Override
+            public void changed(ChangeEvent event, com.badlogic.gdx.scenes.scene2d.Actor actor) {
+                if (hardButton.isChecked()) {
+                    selectedDifficulty = Difficulty.HARD;
+                    refreshDifficultyButtons(hardButton);
+                }
+            }
+        });
+
+        Label difficultyLabel = new Label("DIFFICULTY",
+                new Label.LabelStyle(FontGenerator.generate(ResourceHandler.FontPath.BOMBARD, 18, false), Color.WHITE));
 
         table.add(playButton).padLeft(pCenter(GAME_WIDTH) - pCenter(logo.getWidth()) + 20).align(Align.left).padTop(100);
         table.row();
@@ -143,9 +199,24 @@ public class MainMenu implements Screen {
         table.row();
         table.add(helpButton).padLeft(pCenter(GAME_WIDTH) - pCenter(logo.getWidth()) + 20).align(Align.left).padTop(-20);
         table.row();
+        table.add(difficultyLabel).padLeft(pCenter(GAME_WIDTH) - pCenter(logo.getWidth()) + 30).align(Align.left).padTop(-20);
+        table.row();
+
+        Table difficultyTable = new Table();
+        difficultyTable.add(easyButton);
+        difficultyTable.add(mediumButton).padLeft(8);
+        difficultyTable.add(hardButton).padLeft(8);
+        table.add(difficultyTable).padLeft(pCenter(GAME_WIDTH) - pCenter(logo.getWidth()) + 20).align(Align.left).padTop(-20);
+        table.row();
         table.add(exitButton).padLeft(pCenter(GAME_WIDTH) - pCenter(logo.getWidth()) + 20).align(Align.left).padTop(-20);
 
         stage.addActor(table);
+    }
+
+    private void refreshDifficultyButtons(TextButton active) {
+        for (TextButton button : difficultyGroup.getButtons()) {
+            button.setColor(button == active ? Color.valueOf("ffd700") : Color.WHITE);
+        }
     }
 
     private void forgeLoadingScreen() {

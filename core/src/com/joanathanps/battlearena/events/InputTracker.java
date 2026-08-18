@@ -163,6 +163,10 @@ public final class InputTracker extends InputAdapter {
         return keyPresses[key];
     }
 
+    public static boolean isShiftHeld() {
+        return Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT) || Gdx.input.isKeyPressed(Input.Keys.SHIFT_RIGHT);
+    }
+
     public static int getRelativeX() {
         return (Gdx.input.getX() < GAME_WIDTH / 2 ?
                 -((GAME_WIDTH / 2) - Gdx.input.getX()) : Gdx.input.getX() - (GAME_WIDTH / 2));

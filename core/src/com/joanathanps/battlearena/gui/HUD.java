@@ -4,6 +4,7 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.Sprite;
+import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.scenes.scene2d.Stage;
@@ -315,11 +316,25 @@ public class HUD implements Disposable {
         healthPoints.setText(String.valueOf(health));
     }
 
+    public void drawStaminaBar(float delta, float stamina, float maxStamina) {
+        float ratio = MathUtils.clamp(stamina / maxStamina, 0f, 1f);
+        match.getBatch().begin();
+        match.getBatch().draw(emptyBar, pCenter(GAME_WIDTH) - pCenter(emptyBar.getWidth()), 51);
+        Color previousColor = match.getBatch().getColor();
+        match.getBatch().setColor(Color.valueOf("ffd700"));
+        match.getBatch().draw(armorBar,
+                pCenter(GAME_WIDTH) - pCenter(emptyBar.getWidth()),
+                51,
+                ratio * 400,
+                15);
+        match.getBatch().setColor(previousColor);
+        match.getBatch().end();
+    }
+
     public void updateAmmoIndicator(float delta, Inventory inventory) {
         int bulletsInMagazine = inventory.getBulletsInMagazine();
-        int bulletsInAmmoBoxes = inventory.getBulletsInAmmoBoxes();
-        if (bulletsInMagazine != -1 && bulletsInAmmoBoxes != -1) {
-            ammoIndicator.setText(bulletsInMagazine + " | " + bulletsInAmmoBoxes);
+        if (bulletsInMagazine != -1) {
+            ammoIndicator.setText(bulletsInMagazine + " | INF");
         } else {
             ammoIndicator.setText("");
         }

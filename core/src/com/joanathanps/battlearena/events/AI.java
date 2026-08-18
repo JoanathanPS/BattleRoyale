@@ -29,6 +29,10 @@ public class AI {
     private Vector2 altTarget;
     private ArrayList<Vector2> spatialMemory;
 
+    private float decisionInterval;
+    private float aggression;
+    private float decisionTimeCount;
+
     private boolean isLooting;
     private boolean isGoingByAltPath;
     private boolean isAltPathTimedOut;
@@ -53,10 +57,11 @@ public class AI {
     private void init() {
         spatialMemory = new ArrayList<>();
         selectedInventorySlot = 0;
+        decisionInterval = match.getDifficulty().getReactionSeconds();
+        aggression = match.getDifficulty().getAggressionMultiplier();
     }
 
     public void update(float delta) {
-//        System.out.println(state.name());
         switch (state) {
             case CALCULATING_ROUTE:
                 calculateRoute();
@@ -78,10 +83,14 @@ public class AI {
                 break;
         }
 
-        checkAvailableWeapons();
-        checkZoneTime();
-        if (state != State.CHASING && state != State.GOING_TO_SAFE_ZONE) {
-            checkSoldiersAround();
+        decisionTimeCount += delta;
+        if (decisionTimeCount >= decisionInterval) {
+            decisionTimeCount = 0;
+            checkAvailableWeapons();
+            checkZoneTime();
+            if (state != State.CHASING && state != State.GOING_TO_SAFE_ZONE) {
+                checkSoldiersAround();
+            }
         }
     }
 
@@ -112,6 +121,7 @@ public class AI {
     }
 
     private void seekLoot() {
+        ((Enemy)soldier).setPursuit(false);
         if (MathUtils.distance(soldier.getBody().getPosition(), target) < 1) {
             spatialMemory.add(target);
             soldier.getBody().getFixtureList().first().setSensor(false);
@@ -153,6 +163,7 @@ public class AI {
     }
 
     private void findPath() {
+        ((Enemy)soldier).setPursuit(false);
         if (!isGoingByAltPath) {
             altTarget = new Vector2();
             altTarget.x = soldier.getBody().getPosition().x + MathUtils.randomRange(-30, 30);
@@ -176,6 +187,7 @@ public class AI {
     }
 
     private void goToSafeZone() {
+        ((Enemy)soldier).setPursuit(false);
         target = new Vector2(41 + match.getSafeZoneController()
                 .getSafezoneOffsets()[match.getSafeZoneController().getCurrentOffset()].x,
                 41 + match.getSafeZoneController()
@@ -188,8 +200,9 @@ public class AI {
     }
 
     private void chase() {
+        ((Enemy)soldier).setPursuit(true);
         if (MathUtils.distance(soldier.getBody().getPosition(), enemyOnTarget.getBody().getPosition()) > 4) {
-            if (MathUtils.distance(soldier.getBody().getPosition(), enemyOnTarget.getBody().getPosition()) < 7) {
+            if (MathUtils.distance(soldier.getBody().getPosition(), enemyOnTarget.getBody().getPosition()) < 7 * aggression) {
                 ((SteeringBehavior)soldier).seek(enemyOnTarget.getBody().getPosition());
             } else {
                 setState(State.CALCULATING_ROUTE);
@@ -260,6 +273,7 @@ public class AI {
                             if (soldier.getInventory().getItems().get(j).getClass() == Empty.class) {
                                 soldier.getInventory().getItems().set(j, items.get(index));
                                 items.set(index, new Empty(match));
+                                readyItem(soldier.getInventory().getItems().get(j));
                             }
                         }
                     }
@@ -269,10 +283,17 @@ public class AI {
                             EntityObject escrow = soldier.getInventory().getItems().get(i);
                             soldier.getInventory().getItems().set(i, items.get(index));
                             items.set(index, escrow);
+                            readyItem(soldier.getInventory().getItems().get(i));
                         }
                     }
                 }
             }
+        }
+    }
+
+    private void readyItem(EntityObject item) {
+        if (Weapon.class.isAssignableFrom(item.getClass())) {
+            ((Weapon) item).fillMagazine();
         }
     }
 
@@ -374,15 +395,27 @@ public class AI {
     }
 
     private void checkSoldiersAround() {
-        ArrayList<Soldier> soldiersAround = new ArrayList<>();
-        for (Soldier enemySoldier : worldBuilder.getSoldiers()) {
-            if (MathUtils.distance(soldier.getBody().getPosition(), enemySoldier.getBody().getPosition()) < 5 &&
-                    hasWeapon() && soldier != enemySoldier && !enemySoldier.isDead()) {
-                soldiersAround.add(enemySoldier);
+        Soldier nearest = null;
+        double nearestDistance = Float.MAX_VALUE;
+        float acquisitionRange = 5 * aggression;
+
+        if (!hasWeapon()) {
+            return;
+        }
+
+        Vector2 position = soldier.getBody().getPosition();
+        for (Soldier combatant : worldBuilder.getSoldiers()) {
+            if (combatant == soldier || combatant.isDead()) {
+                continue;
+            }
+            double distanceToCombatant = MathUtils.distance(position, combatant.getBody().getPosition());
+            if (distanceToCombatant < acquisitionRange && distanceToCombatant < nearestDistance) {
+                nearest = combatant;
+                nearestDistance = distanceToCombatant;
             }
         }
-        if (soldiersAround.size() > 0) {
-            enemyOnTarget = soldiersAround.get(MathUtils.randomRange(0, soldiersAround.size() - 1));
+        if (nearest != null) {
+            enemyOnTarget = nearest;
             setState(State.CHASING);
         }
     }

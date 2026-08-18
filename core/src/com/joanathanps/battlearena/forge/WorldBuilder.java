@@ -181,7 +181,7 @@ public class WorldBuilder {
 
     public ArrayList<Soldier> getSoldiers() {
         ArrayList<Soldier> soldiers = new ArrayList<>();
-//        soldiers.add(match.getPlayer());
+        soldiers.add(match.getPlayer());
         soldiers.addAll(enemies);
         return soldiers;
     }

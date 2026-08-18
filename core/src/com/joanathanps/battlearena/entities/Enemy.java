@@ -1,14 +1,13 @@
 package com.joanathanps.battlearena.entities;
 
-import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
+import com.joanathanps.battlearena.entities.objects.LootPickup;
 import com.joanathanps.battlearena.entities.objects.NPCInventory;
 import com.joanathanps.battlearena.events.AI;
 import com.joanathanps.battlearena.events.SteeringBehavior;
 import com.joanathanps.battlearena.graphics.AnimationRegion;
-import com.joanathanps.battlearena.graphics.ResourceHandler;
 import com.joanathanps.battlearena.scenes.Match;
 
 import static com.joanathanps.battlearena.scheme.PhysicsAdapter.*;
@@ -19,7 +18,7 @@ public class Enemy extends Soldier implements SteeringBehavior, Lootable {
     private Vector2 target;
     private boolean isVisible;
     private boolean playerIsColliding;
-    private Texture interactionButton;
+    private float pursuitMultiplier = 1f;
 
     public Enemy(Match match, float radius, float linearDamping, int speed, Vector2 position) {
         super(match, position, radius, linearDamping, speed, AnimationRegion.SOLDIER, ENEMY_TAG,
@@ -27,6 +26,10 @@ public class Enemy extends Soldier implements SteeringBehavior, Lootable {
                 null);
         isVisible = true;
         setUserData();
+    }
+
+    public void setPursuit(boolean pursuing) {
+        pursuitMultiplier = pursuing ? 1.7f : 1f;
     }
 
     private void updateRotation(float delta) {
@@ -54,7 +57,6 @@ public class Enemy extends Soldier implements SteeringBehavior, Lootable {
         super.init();
         setInventory(new NPCInventory(getMatch(), this));
         ai = new AI(getMatch(), this);
-        interactionButton = getMatch().getResources().getTexture(ResourceHandler.TexturePath.INTERACTION_BUTTON);
     }
 
     @Override
@@ -65,8 +67,8 @@ public class Enemy extends Soldier implements SteeringBehavior, Lootable {
             ai.update(delta);
             updateRotation(delta);
         } else {
-            if (playerIsColliding) {
-                getMatch().handleLootInterface(delta, getInventory().getItems());
+            if (playerIsColliding && LootPickup.hasItems(getInventory().getItems())) {
+                LootPickup.collect(getMatch().getPlayer().getInventory(), getInventory().getItems());
             }
         }
     }
@@ -93,7 +95,8 @@ public class Enemy extends Soldier implements SteeringBehavior, Lootable {
         direction.x = target.x - getBody().getPosition().x;
         direction.y = target.y - getBody().getPosition().y;
         direction = direction.nor();
-        getBody().applyForce(new Vector2(direction.x * getSpeed(), direction.y * getSpeed()), getBody().getWorldCenter(), true);
+        getBody().applyForce(new Vector2(direction.x * getSpeed() * pursuitMultiplier,
+                direction.y * getSpeed() * pursuitMultiplier), getBody().getWorldCenter(), true);
         return true;
     }
 
@@ -115,18 +118,6 @@ public class Enemy extends Soldier implements SteeringBehavior, Lootable {
     @Override
     public void setVisible(boolean visible) {
         isVisible = visible;
-    }
-
-    public void drawInteractionButton() {
-        if (playerIsColliding && isDead()) {
-            getMatch().getBatch().begin();
-            getMatch().getBatch().draw(interactionButton,
-                    getBody().getPosition().x - pScaleCenter(interactionButton.getWidth()),
-                    getBody().getPosition().y - pScaleCenter(interactionButton.getHeight()),
-                    pScale(interactionButton.getWidth()),
-                    pScale(interactionButton.getHeight()));
-            getMatch().getBatch().end();
-        }
     }
 
     public void onPlayerEnter() {

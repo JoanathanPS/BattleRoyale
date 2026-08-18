@@ -2,14 +2,17 @@ package com.joanathanps.battlearena.entities.projectiles;
 
 import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.graphics.g2d.Sprite;
+import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.Body;
 import com.badlogic.gdx.physics.box2d.BodyDef;
 import com.badlogic.gdx.utils.Timer;
+import com.joanathanps.battlearena.entities.Soldier;
 import com.joanathanps.battlearena.entities.objects.weapons.Weapon;
 import com.joanathanps.battlearena.forge.BodyBuilder;
 import com.joanathanps.battlearena.graphics.ResourceHandler;
 import com.joanathanps.battlearena.scenes.Match;
+import com.joanathanps.battlearena.scheme.Difficulty;
 
 import static com.joanathanps.battlearena.scheme.PhysicsAdapter.*;
 
@@ -65,6 +68,18 @@ public class Bullet extends Sprite {
                 .withUserData(this)
                 .build();
         setRotation(weapon.getLastSoldierToShoot().getRotation());
+        applyAccuracySpread();
+    }
+
+    private void applyAccuracySpread() {
+        Soldier shooter = weapon.getLastSoldierToShoot();
+        if (shooter != null && shooter != match.getPlayer()) {
+            Difficulty difficulty = match.getDifficulty();
+            if (MathUtils.random() >= difficulty.getAccuracy()) {
+                float spreadDegrees = 10f + 30f * (1f - difficulty.getAccuracy());
+                setRotation(getRotation() + MathUtils.random(-spreadDegrees, spreadDegrees));
+            }
+        }
     }
 
     private void delayTextureAppearance() {

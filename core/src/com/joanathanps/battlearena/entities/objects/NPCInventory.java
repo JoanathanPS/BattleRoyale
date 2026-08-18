@@ -2,7 +2,6 @@ package com.joanathanps.battlearena.entities.objects;
 
 import com.joanathanps.battlearena.entities.Enemy;
 import com.joanathanps.battlearena.entities.Soldier;
-import com.joanathanps.battlearena.entities.objects.ammo.Ammo;
 import com.joanathanps.battlearena.entities.objects.weapons.Weapon;
 import com.joanathanps.battlearena.scenes.Match;
 
@@ -29,30 +28,7 @@ public class NPCInventory extends Inventory{
 
     @Override
     public void transferAmmo(int bulletsInWeapon) {
-        int bullets = bulletsInWeapon;
-        int amountNeeded = ((Weapon)getItem(((Enemy)getSoldier()).getAi().getSelectedInventorySlot())).getMagCapacity() - bulletsInWeapon;
-        for (int i = 0; i < getItems().size(); i++) {
-
-            if (Ammo.class.isAssignableFrom(getItems().get(i).getClass()) && amountNeeded > 0) {
-
-                Ammo ammoBox = ((Ammo)getItems().get(i));
-                if (ammoBox.getAmount() >= amountNeeded) {
-                    bullets += amountNeeded;
-                    ammoBox.useAmount(amountNeeded);
-                    amountNeeded = 0;
-                } else {
-                    bullets += ammoBox.getAmount();
-                    amountNeeded -= ammoBox.getAmount();
-                    ammoBox.useAll();
-                }
-                if (ammoBox.getAmount() == 0) {
-                    getItems().set(i, new Empty(getMatch()));
-                } else {
-                    ammoBox.updateName();
-                }
-            }
-        }
-        ((Weapon)getItem(((Enemy)getSoldier()).getAi().getSelectedInventorySlot())).setBullets(bullets);
+        ((Weapon)getItem(((Enemy)getSoldier()).getAi().getSelectedInventorySlot())).fillMagazine();
     }
 
     @Override

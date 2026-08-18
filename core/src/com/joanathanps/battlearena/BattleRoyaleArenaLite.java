@@ -2,21 +2,19 @@ package com.joanathanps.battlearena;
 
 import com.badlogic.gdx.Game;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
-import com.joanathanps.battlearena.database.DatabaseManager;
+import com.joanathanps.battlearena.database.MatchResultsRepository;
+import com.joanathanps.battlearena.database.SupabaseMatchResultsRepository;
 import com.joanathanps.battlearena.scenes.MainMenu;
 
 public class BattleRoyaleArenaLite extends Game {
 
     private SpriteBatch batch;
-    private DatabaseManager dbManager;
+    private MatchResultsRepository matchResultsRepository;
 
     @Override
     public void create () {
         batch = new SpriteBatch();
-        dbManager = new DatabaseManager();
-        if (dbManager.connect()) {
-            dbManager.initializeDatabase();
-        }
+        matchResultsRepository = new SupabaseMatchResultsRepository();
         setScreen(new MainMenu(batch));
     }
 
@@ -28,13 +26,10 @@ public class BattleRoyaleArenaLite extends Game {
     @Override
     public void dispose () {
         batch.dispose();
-        if (dbManager != null) {
-            dbManager.disconnect();
-        }
     }
 
-    public DatabaseManager getDbManager() {
-        return dbManager;
+    public MatchResultsRepository getMatchResultsRepository() {
+        return matchResultsRepository;
     }
 
     public SpriteBatch getBatch() {

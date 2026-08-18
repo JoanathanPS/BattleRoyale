@@ -8,7 +8,7 @@ A 2D top-down Battle Royale game built in Java with LibGDX. Survive on an island
 - AI-controlled bots with combat behavior
 - Loot system: weapons (pistols, assault rifles, sniper rifles), armor, helmets, medkits
 - HUD with health, armor, ammo, minimap, kill tracker
-- Match history and leaderboard system (JDBC/MySQL)
+- Match history and leaderboard system (Supabase REST, one codebase for desktop and web)
 
 ## How to play
 
@@ -43,10 +43,10 @@ This project is built on [Rendezvous](https://github.com/brensio/rendezvous) by 
 - AI bot behavior
 
 ### Battle Royale Arena additions:
-- JDBC/MySQL match history and leaderboard system (`DatabaseManager`, `LeaderboardScreen`)
+- Supabase-backed match history and leaderboard system (`MatchResultsRepository`, `SupabaseMatchResultsRepository`, `LeaderboardScreen`)
 - Match result persistence (kills, survival time, score)
 - Leaderboard screen accessible from main menu and game over
-- Database schema for match history storage
+- Uses `Gdx.net.sendHttpRequest` so the same repository code runs on desktop and web (GWT)
 
 ## Development
 
@@ -54,7 +54,26 @@ This project is built on [Rendezvous](https://github.com/brensio/rendezvous) by 
 - **Framework**: LibGDX 1.9.8
 - **Build**: Gradle 4.6
 - **Java**: JDK 8
-- **Database**: MySQL 8.0 (for leaderboard feature)
+- **Leaderboard backend**: Supabase (REST / PostgREST)
+
+## Leaderboard (Supabase) configuration
+
+The leaderboard uses a single cross-platform repository (`SupabaseMatchResultsRepository`)
+which reads its credentials from `core/assets/supabase.properties`:
+
+```
+supabase.url=https://XXXX.supabase.co
+supabase.anonKey=<your-anon-key>
+```
+
+That file is **gitignored** so the anon key is never committed. To enable the
+leaderboard locally, copy `core/assets/supabase.properties.example` to
+`core/assets/supabase.properties` and fill in your project URL and anon key
+(Supabase dashboard -> Settings -> API). The game expects a `match_results`
+table with columns: `player_name`, `difficulty`, `score`, `kills`,
+`survival_time_seconds`, `result`, `created_at`, with row-level security
+policies allowing anonymous insert/select. If the file is missing or still has
+placeholder values the game logs a warning and continues without the leaderboard.
 
 ## Configuration
 

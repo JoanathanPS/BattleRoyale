@@ -11,7 +11,7 @@ import com.badlogic.gdx.utils.Disposable;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
 import com.joanathanps.battlearena.BattleRoyaleArenaLite;
-import com.joanathanps.battlearena.database.DatabaseManager;
+import com.joanathanps.battlearena.database.MatchResultsRepository;
 import com.joanathanps.battlearena.entities.Enemy;
 import com.joanathanps.battlearena.graphics.FontGenerator;
 import com.joanathanps.battlearena.graphics.ResourceHandler;
@@ -98,9 +98,9 @@ public class GameOver implements Disposable {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 BattleRoyaleArenaLite game = (BattleRoyaleArenaLite) Gdx.app.getApplicationListener();
-                DatabaseManager dbManager = game.getDbManager();
-                if (dbManager != null && dbManager.isConnected()) {
-                    game.setScreen(new LeaderboardScreen(dbManager));
+                MatchResultsRepository repository = game.getMatchResultsRepository();
+                if (repository != null) {
+                    game.setScreen(new LeaderboardScreen(repository));
                 }
             }
         });
@@ -136,15 +136,15 @@ public class GameOver implements Disposable {
     private void saveMatchResult() {
         try {
             BattleRoyaleArenaLite game = (BattleRoyaleArenaLite) Gdx.app.getApplicationListener();
-            DatabaseManager dbManager = game.getDbManager();
+            MatchResultsRepository repository = game.getMatchResultsRepository();
 
-            if (dbManager != null && dbManager.isConnected()) {
+            if (repository != null) {
                 int kills = match.getPlayer().getKills();
                 int duration = match.getMatchDuration();
                 String result = isWinner ? "WIN" : "LOSS";
                 int score = kills * 100 + (isWinner ? 500 : 0) + (duration * 10);
 
-                dbManager.saveMatchResult("Player", "NORMAL", score, duration, result);
+                repository.saveMatchResult("Player", match.getDifficulty().getLabel(), score, kills, duration, result);
             }
         } catch (Exception e) {
             System.err.println("Error saving match result: " + e.getMessage());

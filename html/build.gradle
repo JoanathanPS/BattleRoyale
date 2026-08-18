@@ -1,0 +1,60 @@
+apply plugin: "war"
+
+configurations {
+    gwt
+}
+
+dependencies {
+    compile project(":core")
+    compile "com.badlogicgames.gdx:gdx-backend-gwt:$gdxVersion"
+    compile "com.badlogicgames.gdx:gdx:$gdxVersion:sources"
+    compile "com.badlogicgames.gdx:gdx-backend-gwt:$gdxVersion:sources"
+    compile "com.badlogicgames.gdx:gdx-box2d:$gdxVersion:sources"
+    compile "com.badlogicgames.gdx:gdx-box2d-gwt:$gdxVersion"
+    compile "com.badlogicgames.gdx:gdx-box2d-gwt:$gdxVersion:sources"
+    compile "com.google.gwt:gwt-user:2.8.2"
+    compile "com.google.gwt:gwt-dev:2.8.2"
+}
+
+sourceSets.main.java.srcDirs = [ "src/" ]
+
+task compileGwt(type: JavaExec) {
+    main = "com.google.gwt.dev.Compiler"
+    args = [
+        "-war", "$buildDir/webapp",
+        "-logLevel", "INFO",
+        "-sourceLevel", "1.8",
+        "com.joanathanps.battlearena.GdxDefinition"
+    ]
+    maxHeapSize = "1G"
+    doFirst {
+        classpath = files(sourceSets.main.java.srcDirs,
+                project(":core").sourceSets.main.java.srcDirs,
+                configurations.compile)
+    }
+}
+
+task copyAssets(type: Copy) {
+    from "../core/assets"
+    into "$buildDir/webapp/assets"
+}
+
+compileGwt.finalizedBy copyAssets
+
+eclipse {
+    project {
+        name = appName + "-html"
+        linkedResource name: 'assets', type: '2', location: 'PARENT-1-PROJECT_LOC/core/assets'
+    }
+}
+
+task afterEclipseImport(description: "Post processing after project generation", group: "IDE") {
+  doLast {
+    def classpath = new XmlParser().parse(file(".classpath"))
+    new Node(classpath, "classpathentry", [ kind: 'src', path: 'assets' ])
+    def writer = new FileWriter(file(".classpath"))
+    def printer = new XmlNodePrinter(new PrintWriter(writer))
+    printer.setPreserveWhitespace(true)
+    printer.print(classpath)
+  }
+}

@@ -117,3 +117,7 @@ gradle-app.setting
 target/
 bin/
 *.log
+
+### Secrets (Supabase anon key lives here; never commit) ###
+supabase.properties
+core/assets/supabase.properties

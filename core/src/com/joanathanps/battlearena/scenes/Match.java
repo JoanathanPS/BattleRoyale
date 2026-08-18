@@ -30,6 +30,7 @@ import com.joanathanps.battlearena.forge.WorldBuilder;
 import com.joanathanps.battlearena.graphics.ResourceHandler;
 import com.joanathanps.battlearena.gui.*;
 import com.joanathanps.battlearena.languages.Internationalization;
+import com.joanathanps.battlearena.scheme.Difficulty;
 import com.joanathanps.battlearena.scheme.MathUtils;
 import com.joanathanps.battlearena.scheme.PhysicsAdapter;
 
@@ -74,6 +75,12 @@ public class Match implements Screen {
     private Texture waterBackground;
     private Texture deadLoot;
 
+    // dev/verification mode: watches a full match without any player input (system property -Dbral.autodemo=true)
+    private static final boolean AUTODEMO = Boolean.getBoolean("bral.autodemo");
+    private static final float AUTODEMO_SECONDS = Float.parseFloat(System.getProperty("bral.autodemo.seconds", "60"));
+    private float autodemoElapsed;
+    private float autodemoLogTick;
+
     // events
     private InputTracker input;
     private GameState state;
@@ -81,8 +88,10 @@ public class Match implements Screen {
     private boolean gameIsOver;
     private int matchDuration;
     private float matchTimeCount;
+    private final Difficulty difficulty;
 
-    Match(SpriteBatch batch) {
+    Match(SpriteBatch batch, Difficulty difficulty) {
+        this.difficulty = difficulty;
         this.batch = batch;
         loadResources();
         setupCamera();
@@ -90,6 +99,10 @@ public class Match implements Screen {
         setupCursor();
         forgeWorld();
         setupInputTracker();
+    }
+
+    public Difficulty getDifficulty() {
+        return difficulty;
     }
 
     private void loadResources() {
@@ -184,6 +197,20 @@ public class Match implements Screen {
     }
 
     private void update(float delta) {
+        if (AUTODEMO) {
+            autodemoElapsed += delta;
+            autodemoLogTick += delta;
+            if (autodemoLogTick >= 5) {
+                autodemoLogTick = 0;
+                Gdx.app.log("DEMO", "t=" + Math.round(autodemoElapsed) + "s enemiesAlive=" + countAliveEnemies()
+                        + " playerKills=" + player.getKills() + " state=" + state);
+            }
+            if (autodemoElapsed >= AUTODEMO_SECONDS) {
+                Gdx.app.log("DEMO", "AUTODEMO COMPLETE - enemiesAlive=" + countAliveEnemies()
+                        + " playerKills=" + player.getKills());
+                Gdx.app.exit();
+            }
+        }
         if (state == GameState.RUNNING || state == GameState.TACTICAL || state == GameState.LOOTING) {
             world.step(1 / 60f, 6, 2);
             safeZoneController.update(delta);
@@ -194,6 +221,16 @@ public class Match implements Screen {
             checkGameOverConditions();
             updateMatchTimeCount(delta);
         }
+    }
+
+    private int countAliveEnemies() {
+        int alive = 0;
+        for (Enemy enemy : worldBuilder.getEnemies()) {
+            if (!enemy.isDead()) {
+                alive++;
+            }
+        }
+        return alive;
     }
 
     private void lateUpdate(float delta) {
@@ -219,19 +256,6 @@ public class Match implements Screen {
             Gdx.input.setInputProcessor(pause.getStage());
             setCursor(resources.getPixmap(ResourceHandler.PixmapPath.MENU_CURSOR), false);
             setState(GameState.PAUSED);
-        }
-    }
-
-    public void handleLootInterface(float delta, ArrayList<EntityObject> items) {
-        if (InputTracker.isPressed(InputTracker.E) && !player.isActionsBlocked()){
-            if (state == GameState.RUNNING || state == GameState.TACTICAL) {
-                loot = new LootInterface(this, items, player.getInventory().getItems(),
-                        player.getInventory().getEquipmentItems());
-                input.resetAllKeys();
-                Gdx.input.setInputProcessor(loot.getStage());
-                setCursor(resources.getPixmap(ResourceHandler.PixmapPath.MENU_CURSOR), false);
-                setState(GameState.LOOTING);
-            }
         }
     }
 
@@ -452,23 +476,12 @@ public class Match implements Screen {
         batch.end();
     }
 
-    private void renderLootInteractionButton() {
-        for (Loot loot : worldBuilder.getLoot()) {
-            loot.drawInteractionButton();
-        }
-    }
-
-    private void renderDeadLootInteractionButton() {
-        for (Enemy enemy : worldBuilder.getEnemies()) {
-            enemy.drawInteractionButton();
-        }
-    }
-
     private void renderHud(float delta) {
         batch.setProjectionMatrix(hud.getStage().getCamera().combined);
         hud.drawVignette(delta);
         hud.drawHealthBars(delta, player.getHealth(), player.getArmor());
         hud.getStage().draw();
+        hud.drawStaminaBar(delta, player.getStamina(), player.getMaxStamina());
         hud.updateHealthBars(delta, player.getHealth(), player.getArmor());
         hud.updateAmmoIndicator(delta, player.getInventory());
         hud.updateEnemyStatus(delta, worldBuilder);
@@ -540,8 +553,6 @@ public class Match implements Screen {
         renderPlayer();
         renderEnemies();
         overRenderer.render();
-        renderLootInteractionButton();
-        renderDeadLootInteractionButton();
         safeZoneController.render(delta);
         renderHud(delta);
         renderProgressDisplay(delta);

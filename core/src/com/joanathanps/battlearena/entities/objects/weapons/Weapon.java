@@ -25,8 +25,12 @@ public abstract class Weapon extends EntityObject {
     }
 
     public boolean transformSoldier(Soldier soldier) {
-        soldier.getInventory().transferAmmo(bullets);
+        fillMagazine();
         return true;
+    }
+
+    public void fillMagazine() {
+        bullets = magCapacity;
     }
 
     public void shoot(Soldier soldier) {

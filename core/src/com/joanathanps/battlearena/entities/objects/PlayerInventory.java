@@ -28,7 +28,7 @@ public class PlayerInventory extends Inventory{
     public void reloadSelectedWeapon() {
         Object selectedSlotClass = getItem(getMatch().getHud().getSelectedSlot());
 
-        if (hasAmmoForWeaponType((Weapon)selectedSlotClass)) {
+        if (Weapon.class.isAssignableFrom(selectedSlotClass.getClass())) {
             setSelectedBeingUsed(true);
             getMatch().getProgress().setProgressSpeed(((Weapon)selectedSlotClass).getTimeToTransform());
             getMatch().getPlayer().slowDown();
