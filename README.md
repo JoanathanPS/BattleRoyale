@@ -27,9 +27,6 @@ Run `run.bat` or execute the Gradle task: `.\gradlew.bat desktop:run`
 | Map | M |
 | Pause | ESC |
 
-## Credits & Attribution
-
-This project is built on [Rendezvous](https://github.com/brensio/rendezvous) by **brensio**, licensed under the [MIT License](LICENSE).
 
 ### Original engine contributions (by brensio):
 - 2D top-down Battle Royale game engine
