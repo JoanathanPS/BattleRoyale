@@ -3,17 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Battle Royale Web Preview</title>
-  <!-- CheerpJ WebAssembly Runtime -->
+  <title>Battle Royale Arena — Web Player</title>
+  <!-- Official CheerpJ 3.0 Loader -->
   <script src="https://cjrtnc.leaningtech.com/3.0/cj3exec.js"></script>
   <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body, html {
-      margin: 0;
-      padding: 0;
       width: 100%;
       height: 100%;
-      background-color: #0e0e10;
-      color: #fff;
+      background-color: #09090b;
+      color: #f4f4f5;
       font-family: system-ui, -apple-system, sans-serif;
       display: flex;
       flex-direction: column;
@@ -21,10 +20,19 @@
       justify-content: center;
       overflow: hidden;
     }
-    #controls {
+    #header {
       margin-bottom: 12px;
-      font-size: 14px;
+      text-align: center;
+    }
+    #status {
+      font-size: 13px;
+      color: #10b981;
+      margin-top: 4px;
+    }
+    #controls {
+      font-size: 12px;
       color: #a1a1aa;
+      margin-top: 6px;
     }
     kbd {
       background: #27272a;
@@ -33,27 +41,90 @@
       padding: 2px 6px;
       color: #fafafa;
     }
-    #cheerpjDisplay {
-      box-shadow: 0 10px 25px rgba(0,0,0,0.7);
-      border-radius: 8px;
+    #game-container {
+      width: 800px;
+      height: 600px;
+      background: #18181b;
+      border: 1px solid #27272a;
+      border-radius: 12px;
       overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+      position: relative;
     }
+    #loading-overlay {
+      position: absolute;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      color: #a1a1aa;
+      font-size: 14px;
+    }
+    .spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid #27272a;
+      border-top: 3px solid #10b981;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
-  <div id="controls">
-    Controls: <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> to Move | <kbd>Left Click</kbd> Attack/Action | <kbd>E</kbd> Loot
+
+  <div id="header">
+    <h2 style="font-size: 18px; font-weight: 600;">Battle Royale Arena Lite</h2>
+    <div id="status">Initializing WebAssembly runtime...</div>
+    <div id="controls">Controls: <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Move | <kbd>Left Click</kbd> Shoot | <kbd>E</kbd> Loot</div>
+  </div>
+
+  <div id="game-container">
+    <div id="loading-overlay">
+      <div class="spinner"></div>
+      <span>Mounting virtual Java environment...</span>
+    </div>
   </div>
 
   <script>
-    async function launchGame() {
-      // Initialize the CheerpJ WebAssembly environment
-      await cheerpjInit();
-      // Mount and run the JAR file in the browser window
-      cheerpjCreateDisplay(800, 600);
-      await cheerpjRunJar("/app/game.jar");
-    }
-    launchGame();
+    window.addEventListener("DOMContentLoaded", async () => {
+      const statusText = document.getElementById("status");
+      const overlay = document.getElementById("loading-overlay");
+
+      try {
+        if (typeof cheerpjInit !== "function") {
+          throw new Error("CheerpJ library failed to load. Check adblockers or script permissions.");
+        }
+
+        // 1. Initialize runtime
+        await cheerpjInit({
+          enablePreciseAppletSizing: true
+        });
+
+        statusText.innerText = "Loading BattleRoyaleArena-1.0.jar...";
+
+        // 2. Create the display inside our specific container
+        cheerpjCreateDisplay(800, 600, document.getElementById("game-container"));
+
+        // 3. Remove the loader once the window is up
+        overlay.style.display = "none";
+        statusText.innerText = "Running client-side";
+
+        // 4. Run the JAR from the local directory
+        await cheerpjRunJar("/app/BattleRoyaleArena-1.0.jar");
+      } catch (err) {
+        console.error(err);
+        statusText.innerText = "Execution failed. See console.";
+        statusText.style.color = "#ef4444";
+        overlay.innerHTML = `<span style="color:#ef4444; text-align:center; padding: 20px;">
+          Failed to start WebAssembly environment.<br><br>
+          <code>${err.message}</code>
+        </span>`;
+      }
+    });
   </script>
 </body>
 </html>
