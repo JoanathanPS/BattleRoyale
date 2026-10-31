@@ -3,14 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Battle Royale Arena — Play in Browser & Download</title>
-  <meta name="description" content="Play Battle Royale Arena directly in your browser or download the desktop Java release. 2D top-down survival combat, AI bots, safe zone mechanics, and live leaderboards." />
+  <title>Battle Royale Arena — Play & Download</title>
+  <meta name="description" content="Battle Royale Arena: 2D top-down survival combat, AI tactical bots, shrinking safe zones, and live global leaderboards." />
   <link rel="canonical" href="https://battleroyale.joanathan.in/" />
 
-  <!-- Open Graph / Meta -->
+  <!-- Favicon -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚔️</text></svg>">
+
+  <!-- Open Graph -->
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://battleroyale.joanathan.in/" />
-  <meta property="og:title" content="Battle Royale Arena — Play in Browser" />
+  <meta property="og:title" content="Battle Royale Arena — Play & Download" />
   <meta property="og:description" content="2D top-down survival combat engine with bots, loot mechanics, and shrinking combat zones." />
 
   <!-- Google Fonts & Tailwind CDN -->
@@ -78,10 +81,10 @@
       </a>
 
       <nav class="hidden md:flex items-center gap-6 text-sm font-medium text-zinc-300">
-        <a href="#play" class="hover:text-emerald-400 transition-colors">Play Online</a>
+        <a href="#play" class="hover:text-emerald-400 transition-colors">Play / Run</a>
         <a href="#leaderboard" class="hover:text-emerald-400 transition-colors">Leaderboard</a>
         <a href="#download" class="hover:text-emerald-400 transition-colors">Download JAR</a>
-        <a href="#controls" class="hover:text-emerald-400 transition-colors">Controls</a>
+        <a href="#controls" class="hover:text-emerald-400 transition-colors">Field Manual</a>
       </nav>
 
       <div class="flex items-center gap-3">
@@ -95,10 +98,11 @@
           <span class="hidden sm:inline">GitHub</span>
         </a>
         <a 
-          href="#play" 
+          href="./BattleRoyaleArena-1.0.jar" 
+          download="BattleRoyaleArena-1.0.jar"
           class="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-emerald-500 hover:bg-emerald-400 text-zinc-950 text-xs font-bold transition shadow-md shadow-emerald-500/20"
         >
-          Play Now
+          Download Game
         </a>
       </div>
     </div>
@@ -108,7 +112,7 @@
   <section class="max-w-5xl mx-auto px-4 sm:px-6 pt-10 pb-6 text-center">
     <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-xs font-semibold mb-4">
       <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-      Direct In-Browser JVM &bull; Release v1.0.0
+      Release v1.0.0 Ready &bull; Standalone Desktop JAR
     </div>
     <h1 class="text-4xl sm:text-6xl font-black tracking-tight text-white mb-4">
       Survive The Shrinking Zone In <br />
@@ -116,9 +120,36 @@
         Battle Royale Arena
       </span>
     </h1>
-    <p class="text-zinc-400 text-base sm:text-lg max-w-2xl mx-auto leading-relaxed">
+    <p class="text-zinc-400 text-base sm:text-lg max-w-2xl mx-auto leading-relaxed mb-6">
       A fast-paced 2D survival combat arena built in Java LibGDX. Scavenge high-tier weaponry, outmaneuver tactical bots, and claim #1 victory.
     </p>
+
+    <!-- Quick Action Buttons -->
+    <div class="flex flex-wrap items-center justify-center gap-4">
+      <a 
+        href="./BattleRoyaleArena-1.0.jar" 
+        download="BattleRoyaleArena-1.0.jar"
+        class="inline-flex items-center gap-2.5 px-7 py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-zinc-950 font-extrabold text-sm shadow-xl shadow-emerald-500/20 hover:scale-105 active:scale-95 transition-all duration-150"
+      >
+        <svg class="w-5 h-5 fill-none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+        <span>Download JAR (15.4 MB)</span>
+      </a>
+      <a 
+        href="./Launch-BattleRoyaleArena.bat" 
+        download="Launch-BattleRoyaleArena.bat"
+        class="inline-flex items-center gap-2 px-5 py-3.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700/80 text-white font-bold text-sm transition"
+      >
+        <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+        <span>Windows Launcher (.bat)</span>
+      </a>
+      <a 
+        href="#play" 
+        class="inline-flex items-center gap-1.5 px-5 py-3.5 rounded-xl bg-zinc-950/80 hover:bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white text-sm font-semibold transition"
+      >
+        <span>Try Browser Player</span>
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+      </a>
+    </div>
   </section>
 
   <!-- Web Game Player Section -->
@@ -143,7 +174,7 @@
             <span>Fullscreen</span>
           </button>
           <span id="jvm-status-badge" class="text-[11px] font-mono px-2 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700/60">
-            CheerpJ 3.0 Ready
+            CheerpJ 3.0 Wasm
           </span>
         </div>
       </div>
@@ -152,38 +183,48 @@
       <div id="game-stage" class="relative w-full aspect-video min-h-[460px] bg-[#050608] flex items-center justify-center overflow-hidden">
         
         <!-- Pre-Launch Splash State -->
-        <div id="launcher-splash" class="absolute inset-0 flex flex-col items-center justify-center p-6 text-center z-10 bg-gradient-to-b from-zinc-950/60 to-zinc-950/95 backdrop-blur-sm">
-          <div class="w-20 h-20 rounded-2xl bg-gradient-to-tr from-emerald-500/20 to-teal-500/20 border border-emerald-500/30 flex items-center justify-center mb-6 shadow-xl shadow-emerald-500/10">
-            <svg class="w-10 h-10 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div id="launcher-splash" class="absolute inset-0 flex flex-col items-center justify-center p-6 text-center z-10 bg-gradient-to-b from-zinc-950/70 to-zinc-950/95 backdrop-blur-sm">
+          <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-emerald-500/20 to-teal-500/20 border border-emerald-500/30 flex items-center justify-center mb-4 shadow-xl shadow-emerald-500/10">
+            <svg class="w-8 h-8 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path>
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
             </svg>
           </div>
-          <h2 class="text-2xl sm:text-3xl font-extrabold text-white mb-2">Play Battle Royale Arena</h2>
-          <p class="text-zinc-400 text-sm max-w-md mb-6 leading-relaxed">
-            Runs <code class="text-emerald-400 bg-emerald-950/60 px-1.5 py-0.5 rounded text-xs">BattleRoyaleArena-1.0.jar</code> inside your browser using client-side WebAssembly. No Java installation needed.
+          <h2 class="text-2xl sm:text-3xl font-extrabold text-white mb-2">Launch Battle Royale Arena</h2>
+          <p class="text-zinc-400 text-xs sm:text-sm max-w-lg mb-6 leading-relaxed">
+            Runs <code class="text-emerald-400 bg-emerald-950/60 px-1.5 py-0.5 rounded text-xs">BattleRoyaleArena-1.0.jar</code> inside your browser using client-side WebAssembly (CheerpJ). 
+            <span class="block text-zinc-500 text-xs mt-1">Note: Desktop JARs utilize native LWJGL OpenGL libraries; if your browser limits WebAssembly OpenGL, download the native desktop JAR below.</span>
           </p>
 
-          <button 
-            id="start-game-btn" 
-            onclick="launchGameInBrowser()" 
-            class="group inline-flex items-center gap-3 px-8 py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-zinc-950 text-base font-bold shadow-xl shadow-emerald-500/25 hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer"
-          >
-            <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-            <span>Launch Game in Browser</span>
-          </button>
+          <div class="flex flex-wrap items-center justify-center gap-3">
+            <button 
+              id="start-game-btn" 
+              onclick="launchGameInBrowser()" 
+              class="group inline-flex items-center gap-2.5 px-7 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-zinc-950 text-sm font-bold shadow-xl shadow-emerald-500/25 hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer"
+            >
+              <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+              <span>Launch In Browser</span>
+            </button>
+            <a 
+              href="./BattleRoyaleArena-1.0.jar" 
+              download 
+              class="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white text-xs font-semibold transition"
+            >
+              <span>Download JAR Instead (15.4 MB)</span>
+            </a>
+          </div>
           
           <div class="mt-6 flex flex-wrap items-center justify-center gap-4 text-xs text-zinc-500">
             <span class="flex items-center gap-1.5">
-              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> 100% Client-Side
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Client-Side Wasm
             </span>
             <span>&bull;</span>
             <span class="flex items-center gap-1.5">
-              <span class="w-1.5 h-1.5 rounded-full bg-teal-500"></span> WebGL Acceleration
+              <span class="w-1.5 h-1.5 rounded-full bg-teal-500"></span> WebGL Canvas
             </span>
             <span>&bull;</span>
             <span class="flex items-center gap-1.5">
-              <span class="w-1.5 h-1.5 rounded-full bg-cyan-500"></span> Supabase Leaderboards
+              <span class="w-1.5 h-1.5 rounded-full bg-cyan-500"></span> Supabase Sync
             </span>
           </div>
         </div>
@@ -197,7 +238,15 @@
           <div class="w-72 bg-zinc-900 border border-zinc-800 rounded-full h-2.5 overflow-hidden mb-3">
             <div id="progress-bar-fill" class="bg-gradient-to-r from-emerald-500 to-teal-400 h-full w-1/4 transition-all duration-500"></div>
           </div>
-          <span id="progress-percentage" class="text-xs font-mono text-emerald-400 font-bold">25%</span>
+          <span id="progress-percentage" class="text-xs font-mono text-emerald-400 font-bold mb-4">25%</span>
+
+          <!-- Fallback prompt in case of JVM hang -->
+          <div id="loading-fallback" class="hidden text-xs text-zinc-400 max-w-sm bg-zinc-900/80 border border-zinc-800 rounded-lg p-3">
+            <p class="mb-2 text-zinc-300">Taking longer than expected? Desktop JARs perform best when run natively:</p>
+            <a href="./BattleRoyaleArena-1.0.jar" download class="inline-flex items-center gap-1 text-emerald-400 hover:text-emerald-300 font-bold">
+              Download BattleRoyaleArena-1.0.jar &darr;
+            </a>
+          </div>
         </div>
 
         <!-- CheerpJ Graphical Container -->
@@ -281,7 +330,7 @@
   <section id="download" class="max-w-6xl mx-auto px-4 sm:px-6 py-12 w-full">
     <div class="text-center max-w-2xl mx-auto mb-10">
       <h2 class="text-2xl sm:text-3xl font-extrabold text-white mb-3">Download Release v1.0.0</h2>
-      <p class="text-zinc-400 text-sm">Prefer maximum 144+ FPS desktop performance? Download the standalone executable JAR and companion batch runner.</p>
+      <p class="text-zinc-400 text-sm">Experience maximum 144+ FPS desktop performance. Download the standalone executable JAR and companion batch runner.</p>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -530,66 +579,85 @@
     async function launchGameInBrowser() {
       const splash = document.getElementById("launcher-splash");
       const loading = document.getElementById("launcher-loading");
-      const loadingStage = document.getElementById("loading-stage-text");
-      const loadingSub = document.getElementById("loading-sub-text");
-      const progressBar = document.getElementById("progress-bar-fill");
-      const progressPercent = document.getElementById("progress-percentage");
+      const loadingFallback = document.getElementById("loading-fallback");
       const display = document.getElementById("cheerpj-display");
       const fsBtn = document.getElementById("fullscreen-btn");
       const badge = document.getElementById("jvm-status-badge");
 
       splash.classList.add("hidden");
       loading.classList.remove("hidden");
+      loadingFallback.classList.add("hidden");
+
+      // Set fallback timer if JVM takes over 10s
+      const fallbackTimer = setTimeout(() => {
+        loadingFallback.classList.remove("hidden");
+      }, 10000);
 
       try {
         // Step 1: Initialize CheerpJ WebAssembly environment
-        updateProgress(20, "Initializing WebAssembly JVM...", "Loading CheerpJ 3.0 WebAssembly kernel");
+        updateProgress(30, "Initializing WebAssembly JVM...", "Loading CheerpJ 3.0 WebAssembly kernel");
         if (!cheerpjInitialized) {
           if (typeof cheerpjInit === "undefined") {
-            throw new Error("CheerpJ loader not available. Please ensure network connection or try desktop JAR.");
+            throw new Error("CheerpJ loader script was not reachable.");
           }
-          await cheerpjInit({
-            enablePreciseAppletLifecycle: true
-          });
+          await cheerpjInit();
           cheerpjInitialized = true;
         }
 
         // Step 2: Create virtualized display
-        updateProgress(50, "Allocating 1280x720 Canvas...", "Binding WebGL graphics context");
+        updateProgress(65, "Binding Virtual Display...", "Initializing 1280x720 canvas viewport");
         cheerpjCreateDisplay(1280, 720, display);
 
         // Step 3: Mount and run the JAR file
-        updateProgress(80, "Mounting Battle Royale Arena...", "Loading BattleRoyaleArena-1.0.jar (15.4 MB)");
-        badge.textContent = "JVM Running";
+        updateProgress(90, "Starting Battle Royale Arena...", "Reading BattleRoyaleArena-1.0.jar (15.4 MB)");
+        badge.textContent = "JVM Active";
         badge.className = "text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/40";
         fsBtn.classList.remove("hidden");
         gameRunning = true;
 
+        clearTimeout(fallbackTimer);
         setTimeout(() => {
           loading.classList.add("hidden");
-        }, 1200);
+        }, 1500);
 
         // Run the JAR
-        const exitCode = await cheerpjRunJar("/app/BattleRoyaleArena-1.0.jar");
-        console.log("Game exited with code:", exitCode);
+        cheerpjRunJar("/app/BattleRoyaleArena-1.0.jar").then(
+          exitCode => console.log("Game exited with code:", exitCode),
+          err => {
+            console.warn("CheerpJ native runtime note:", err);
+            showNativeNotice();
+          }
+        );
 
       } catch (err) {
+        clearTimeout(fallbackTimer);
         console.error("Execution error:", err);
-        loading.innerHTML = `
-          <div class="max-w-md p-6 bg-red-950/40 border border-red-500/30 rounded-xl">
-            <div class="w-10 h-10 rounded-full bg-red-500/20 text-red-400 flex items-center justify-center mx-auto mb-3">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-            </div>
-            <h4 class="text-sm font-bold text-white mb-1">In-Browser Execution Notice</h4>
-            <p class="text-xs text-zinc-400 leading-relaxed mb-4">
-              Your browser or security environment may restrict WebAssembly threads. You can play directly on your desktop with zero limitations:
-            </p>
-            <a href="./BattleRoyaleArena-1.0.jar" download class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-xs">
-              Download Desktop JAR (15.4 MB)
+        showNativeNotice(err.message);
+      }
+    }
+
+    function showNativeNotice(msg) {
+      const loading = document.getElementById("launcher-loading");
+      loading.classList.remove("hidden");
+      loading.innerHTML = `
+        <div class="max-w-md p-6 bg-zinc-900 border border-emerald-500/40 rounded-2xl shadow-2xl">
+          <div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center mx-auto mb-3">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+          </div>
+          <h4 class="text-base font-bold text-white mb-1">Play Directly on Desktop</h4>
+          <p class="text-xs text-zinc-400 leading-relaxed mb-5">
+            Battle Royale Arena utilizes hardware-accelerated desktop LWJGL / C++ OpenGL libraries that require native execution. Run offline with silky-smooth 144+ FPS:
+          </p>
+          <div class="space-y-2">
+            <a href="./BattleRoyaleArena-1.0.jar" download class="w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-xs shadow-md">
+              Download BattleRoyaleArena-1.0.jar (15.4 MB)
+            </a>
+            <a href="./Launch-BattleRoyaleArena.bat" download class="w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 font-semibold text-xs">
+              Download Windows 1-Click Launcher (.bat)
             </a>
           </div>
-        `;
-      }
+        </div>
+      `;
     }
 
     function updateProgress(percent, stageText, subText) {
@@ -620,12 +688,11 @@
       }
     }, false);
 
-    // Initial load
+    // Initial load: fetch Supabase leaderboard and set auto-refresh
     document.addEventListener("DOMContentLoaded", () => {
       fetchLeaderboard();
-      setInterval(fetchLeaderboard, 30000); // Auto-refresh leaderboard every 30s
+      setInterval(fetchLeaderboard, 30000);
     });
   </script>
 </body>
 </html>
-
