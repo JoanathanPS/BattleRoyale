@@ -42,6 +42,9 @@ public abstract class Weapon extends EntityObject {
                 bulletTimeCount = 0;
                 isblocked = true;
                 soldier.setFiring(true);
+                if (getMatch().getHud() != null) {
+                    getMatch().getHud().recordGunshot(soldier.getBody().getPosition());
+                }
             }
             if (!isUnblocking){
                 isUnblocking = true;

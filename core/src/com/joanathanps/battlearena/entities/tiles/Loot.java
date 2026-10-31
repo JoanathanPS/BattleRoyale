@@ -10,6 +10,7 @@ import com.joanathanps.battlearena.entities.objects.equipment.armor.MilitaryVest
 import com.joanathanps.battlearena.entities.objects.equipment.armor.SoftVest;
 import com.joanathanps.battlearena.entities.objects.equipment.helmets.CombatHelmet;
 import com.joanathanps.battlearena.entities.objects.equipment.helmets.HalfHelmet;
+import com.joanathanps.battlearena.entities.objects.weapons.Weapon;
 import com.joanathanps.battlearena.entities.objects.weapons.ars.STAR;
 import com.joanathanps.battlearena.entities.objects.weapons.ars.W16A;
 import com.joanathanps.battlearena.entities.objects.weapons.pistols.G21;
@@ -39,13 +40,24 @@ public abstract class Loot extends InteractiveTile implements Lootable {
     }
 
     public void update(float delta) {
-        if (playerIsColliding && LootPickup.hasItems(items)) {
-            LootPickup.collect(getMatch().getPlayer().getInventory(), items);
-        }
+        // Player interacts via the NearbyLootWidget when in proximity
     }
 
-    ArrayList<EntityObject> getItems() {
+    public boolean isPlayerColliding() {
+        return playerIsColliding;
+    }
+
+    public ArrayList<EntityObject> getItems() {
         return items;
+    }
+
+    public boolean hasItems() {
+        for (EntityObject item : items) {
+            if (!(item instanceof com.joanathanps.battlearena.entities.objects.Empty)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public Match getMatch() {
@@ -73,30 +85,76 @@ public abstract class Loot extends InteractiveTile implements Lootable {
     }
 
     public EntityObject getRandomItem() {
+        return rollItem();
+    }
+
+    public EntityObject getRandomItemWithoutDuplicateWeapon(ArrayList<EntityObject> existingItems) {
+        for (int attempts = 0; attempts < 20; attempts++) {
+            EntityObject candidate = rollItem();
+            if (candidate instanceof Weapon && containsWeaponType(existingItems, candidate.getClass())) {
+                continue;
+            }
+            return candidate;
+        }
+        return null;
+    }
+
+    private boolean containsWeaponType(ArrayList<EntityObject> existingItems, Class<?> weaponClass) {
+        for (EntityObject item : existingItems) {
+            if (item instanceof Weapon && item.getClass() == weaponClass) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private EntityObject rollItem() {
         int randomNumber = MathUtils.randomRange(1, 100);
 
         if (randomNumber <= 13 ) {
-            return new Medkit(getMatch());
+            Medkit item = new Medkit(getMatch());
+            item.setRarity(1);
+            return item;
         } else if (randomNumber <= 25 ) {
-            return new SoftVest(getMatch());
+            SoftVest item = new SoftVest(getMatch());
+            item.setRarity(2);
+            return item;
         } else if (randomNumber <= 34 ) {
-            return new HalfHelmet(getMatch());
+            HalfHelmet item = new HalfHelmet(getMatch());
+            item.setRarity(2);
+            return item;
         } else if (randomNumber <= 40 ) {
-            return new MilitaryVest(getMatch());
+            MilitaryVest item = new MilitaryVest(getMatch());
+            item.setRarity(3);
+            return item;
         } else if (randomNumber <= 43 ) {
-            return new CombatHelmet(getMatch());
+            CombatHelmet item = new CombatHelmet(getMatch());
+            item.setRarity(4);
+            return item;
         } else if (randomNumber <= 68 ) {
-            return new G21(getMatch());
+            G21 item = new G21(getMatch());
+            item.setRarity(5);
+            return item;
         } else if (randomNumber <= 80 ) {
-            return new P26(getMatch());
+            P26 item = new P26(getMatch());
+            item.setRarity(5);
+            return item;
         } else if (randomNumber <= 90 ) {
-            return new STAR(getMatch());
+            STAR item = new STAR(getMatch());
+            item.setRarity(5);
+            return item;
         } else if (randomNumber <= 95 ) {
-            return new W16A(getMatch());
+            W16A item = new W16A(getMatch());
+            item.setRarity(5);
+            return item;
         } else if (randomNumber <= 98 ) {
-            return new M20(getMatch());
+            M20 item = new M20(getMatch());
+            item.setRarity(5);
+            return item;
         } else if (randomNumber <= 100 ) {
-            return new AW3(getMatch());
+            AW3 item = new AW3(getMatch());
+            item.setRarity(6);
+            return item;
         }
 
         return null;

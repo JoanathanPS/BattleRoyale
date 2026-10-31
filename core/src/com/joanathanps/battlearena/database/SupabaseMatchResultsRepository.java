@@ -5,6 +5,7 @@ import com.badlogic.gdx.Net;
 import com.badlogic.gdx.net.HttpRequestBuilder;
 import com.badlogic.gdx.utils.JsonReader;
 import com.badlogic.gdx.utils.JsonValue;
+import com.badlogic.gdx.utils.JsonWriter;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -88,21 +89,35 @@ public class SupabaseMatchResultsRepository implements MatchResultsRepository {
             body.addChild("survival_time_seconds", new JsonValue((long) survivalTimeSeconds));
             body.addChild("result", new JsonValue(result));
 
+            String postUrl = url + "/rest/v1/match_results";
+            Gdx.app.log(TAG, "POST save match URL: " + postUrl);
+
+            String postBody = body.toJson(JsonWriter.OutputType.json);
+            Gdx.app.log(TAG, "POST save match body: " + postBody);
+
             Net.HttpRequest request = new HttpRequestBuilder()
                     .newRequest()
                     .method(Net.HttpMethods.POST)
-                    .url(url + "/rest/v1/match_results")
+                    .url(postUrl)
                     .header("apikey", anonKey)
                     .header("Authorization", "Bearer " + anonKey)
                     .header("Content-Type", "application/json")
                     .header("Prefer", "return=minimal")
-                    .content(body.toString())
+                    .content(postBody)
                     .build();
 
             Gdx.net.sendHttpRequest(request, new Net.HttpResponseListener() {
                 @Override
                 public void handleHttpResponse(Net.HttpResponse httpResponse) {
                     int status = httpResponse.getStatus().getStatusCode();
+                    String responseBody = null;
+                    try {
+                        responseBody = httpResponse.getResultAsString();
+                    } catch (Exception ignored) {
+                    }
+                    Gdx.app.log(TAG, "POST save response HTTP " + status + " body["
+                            + (responseBody == null ? "null" : responseBody.length()) + "]: "
+                            + (responseBody == null ? "" : responseBody.substring(0, Math.min(responseBody.length(), 400))));
                     if (status == 200 || status == 201 || status == 204) {
                         Gdx.app.log(TAG, "Match result saved for " + playerName + " (HTTP " + status + ").");
                     } else {
@@ -137,6 +152,8 @@ public class SupabaseMatchResultsRepository implements MatchResultsRepository {
                     + "?select=player_name,difficulty,score,kills,survival_time_seconds,result,created_at"
                     + "&order=score.desc&limit=" + limit;
 
+            Gdx.app.log(TAG, "GET leaderboard URL: " + query);
+
             Net.HttpRequest request = new HttpRequestBuilder()
                     .newRequest()
                     .method(Net.HttpMethods.GET)
@@ -151,11 +168,16 @@ public class SupabaseMatchResultsRepository implements MatchResultsRepository {
                 public void handleHttpResponse(Net.HttpResponse httpResponse) {
                     try {
                         int status = httpResponse.getStatus().getStatusCode();
+                        String body = httpResponse.getResultAsString();
+                        Gdx.app.log(TAG, "GET leaderboard response HTTP " + status + " body["
+                                + (body == null ? "null" : body.length()) + "]: "
+                                + (body == null ? "" : body.substring(0, Math.min(body.length(), 400))));
                         if (status != 200 && status != 201) {
-                            callback.onFailure("Leaderboard request failed with HTTP " + status + ".");
+                            callback.onFailure("Leaderboard request failed with HTTP " + status
+                                    + " (" + (body == null ? "" : body) + ").");
                             return;
                         }
-                        callback.onSuccess(parseLeaderboard(httpResponse.getResultAsString()));
+                        callback.onSuccess(parseLeaderboard(body));
                     } catch (Exception e) {
                         Gdx.app.log(TAG, "Error handling leaderboard response: " + e.getMessage());
                         callback.onFailure("Error parsing leaderboard response.");

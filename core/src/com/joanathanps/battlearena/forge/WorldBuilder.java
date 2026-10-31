@@ -16,6 +16,8 @@ import com.joanathanps.battlearena.entities.tiles.Building;
 import com.joanathanps.battlearena.entities.tiles.Chest;
 import com.joanathanps.battlearena.entities.tiles.Crate;
 import com.joanathanps.battlearena.entities.tiles.Loot;
+import com.joanathanps.battlearena.events.NavigationWaypoint;
+import com.joanathanps.battlearena.events.WaypointNavigator;
 import com.joanathanps.battlearena.scenes.Match;
 
 import java.util.ArrayList;
@@ -44,6 +46,7 @@ public class WorldBuilder {
     private ArrayList<Chest> chests;
     private ArrayList<Enemy> enemies;
     private ArrayList<Building> buildings;
+    private WaypointNavigator waypointNavigator;
     private Match match;
 
     public WorldBuilder(Match match) {
@@ -56,6 +59,7 @@ public class WorldBuilder {
         buildChests();
         buildCrates();
         buildBuildingSensors();
+        buildWaypointNavigator();
         buildEnemies();
     }
 
@@ -64,6 +68,7 @@ public class WorldBuilder {
         crates = new ArrayList<>();
         enemies = new ArrayList<>();
         buildings = new ArrayList<>();
+        waypointNavigator = null; // built after building sensors
     }
 
     private void buildPolygonalObject(Layer layer) {
@@ -131,12 +136,55 @@ public class WorldBuilder {
         }
     }
 
+    /**
+     * Creates the {@link WaypointNavigator} and registers entry-point
+     * waypoints for every building sensor on the map.
+     *
+     * <p>Must be called <em>after</em> {@link #buildBuildingSensors()} so
+     * the buildings list is fully populated.
+     */
+    private void buildWaypointNavigator() {
+        waypointNavigator = new WaypointNavigator(match.getWorld());
+        int buildingIndex = 0;
+        for (Building building : buildings) {
+            ArrayList<Vector2> entryPoints = building.getEntryPoints();
+            String[] labels = {"N", "S", "E", "W"};
+            for (int i = 0; i < entryPoints.size(); i++) {
+                String name = "Building_" + buildingIndex + "_" + labels[i];
+                waypointNavigator.addWaypoint(new NavigationWaypoint(name, entryPoints.get(i)));
+            }
+            buildingIndex++;
+        }
+    }
+
     private void buildEnemies() {
+        int maxEnemies = 8; // default
+        float difficultyMultiplier = 1f;
+        
+        // Adjust enemy count based on difficulty
+        switch (match.getDifficulty()) {
+            case EASY:
+                maxEnemies = 5;
+                difficultyMultiplier = 0.6f;
+                break;
+            case MEDIUM:
+                maxEnemies = 12;
+                difficultyMultiplier = 1.0f;
+                break;
+            case HARD:
+                maxEnemies = 20;
+                difficultyMultiplier = 1.4f;
+                break;
+        }
+        
+        int index = 0;
         for (MapObject object :
                 match.getMap().getLayers().get(Layer.ENEMY_SPAWN_POINTS.index).getObjects()
                         .getByType(EllipseMapObject.class)) {
+            if (index >= maxEnemies) break;
             Ellipse rect = ((EllipseMapObject) object).getEllipse();
-            enemies.add(new Enemy(match, 35, 5, 8, new Vector2(rect.x, rect.y)));
+            enemies.add(new Enemy(match, 35, 5, 8, new Vector2(rect.x, rect.y), index));
+            index++;
         }
 //         instantiate a single enemy
 //            Ellipse rect = ((EllipseMapObject) match.getMap().getLayers()
@@ -192,5 +240,9 @@ public class WorldBuilder {
 
     public ArrayList<Building> getBuildings() {
         return buildings;
+    }
+
+    public WaypointNavigator getWaypointNavigator() {
+        return waypointNavigator;
     }
 }

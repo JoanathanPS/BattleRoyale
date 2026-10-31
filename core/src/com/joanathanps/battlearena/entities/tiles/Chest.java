@@ -1,7 +1,10 @@
 package com.joanathanps.battlearena.entities.tiles;
 
 import com.badlogic.gdx.math.Rectangle;
+import com.joanathanps.battlearena.entities.objects.EntityObject;
 import com.joanathanps.battlearena.scenes.Match;
+
+import static com.joanathanps.battlearena.scheme.MathUtils.randomRange;
 
 public class Chest extends Loot {
 
@@ -16,8 +19,12 @@ public class Chest extends Loot {
     }
 
     private void addItems() {
-        for (int i = 0; i < 6; i++) {
-            getItems().add(getRandomItem());
+        int itemCount = randomRange(4, 5);
+        for (int i = 0; i < itemCount; i++) {
+            EntityObject item = getRandomItemWithoutDuplicateWeapon(getItems());
+            if (item != null) {
+                getItems().add(item);
+            }
         }
     }
 

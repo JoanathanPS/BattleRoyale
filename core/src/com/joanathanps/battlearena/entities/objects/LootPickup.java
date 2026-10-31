@@ -32,12 +32,59 @@ public final class LootPickup {
                 if (tryEquip(inventory, 1, item)) {
                     items.set(i, new Empty(inventory.getMatch()));
                 }
+            } else if (Weapon.class.isAssignableFrom(item.getClass())
+                    && tryRefillDuplicateWeapon(inventory, (Weapon) item)) {
+                // Same weapon already held — ammo topped up, consume the ground copy
+                items.set(i, new Empty(inventory.getMatch()));
             } else if (tryAddToFreeSlot(inventory, item)) {
                 items.set(i, new Empty(inventory.getMatch()));
             } else if (Weapon.class.isAssignableFrom(item.getClass()) && trySwapWeapon(inventory, item)) {
                 items.set(i, new Empty(inventory.getMatch()));
             }
         }
+    }
+
+    /**
+     * Collects a single specific item chosen by the player (PUBG style).
+     * Transfers item to player's inventory/equipment and clears it from sourceList.
+     */
+    public static boolean collectSingle(Inventory inventory, EntityObject item, ArrayList<EntityObject> sourceList) {
+        if (item == null || item.getClass() == Empty.class) {
+            return false;
+        }
+
+        boolean collected = false;
+        if (Helmet.class.isAssignableFrom(item.getClass())) {
+            collected = tryEquip(inventory, 0, item);
+        } else if (Armor.class.isAssignableFrom(item.getClass())) {
+            collected = tryEquip(inventory, 1, item);
+        } else if (Weapon.class.isAssignableFrom(item.getClass())
+                && tryRefillDuplicateWeapon(inventory, (Weapon) item)) {
+            collected = true;
+        } else if (tryAddToFreeSlot(inventory, item)) {
+            collected = true;
+        } else if (Weapon.class.isAssignableFrom(item.getClass())) {
+            // Swap with selected slot if inventory is full
+            int selectedSlot = inventory.getMatch().getHud().getSelectedSlot();
+            EntityObject oldItem = inventory.getItems().get(selectedSlot);
+            inventory.getItems().set(selectedSlot, item);
+            identifyItem(item);
+            // Replace ground item with swapped item or empty
+            int idx = sourceList.indexOf(item);
+            if (idx != -1) {
+                sourceList.set(idx, oldItem);
+            }
+            return true;
+        }
+
+        if (collected) {
+            int idx = sourceList.indexOf(item);
+            if (idx != -1) {
+                sourceList.set(idx, new Empty(inventory.getMatch()));
+            }
+            return true;
+        }
+        return false;
     }
 
     private static boolean tryEquip(Inventory inventory, int equipmentSlot, EntityObject item) {
@@ -51,6 +98,22 @@ public final class LootPickup {
             equipment.set(equipmentSlot, item);
             identifyItem(item);
             return true;
+        }
+        return false;
+    }
+
+    /**
+     * If the inventory already contains the same weapon class as {@code incoming},
+     * top up that weapon's magazine to full capacity and return true.
+     * The incoming ground item is consumed by the caller.
+     */
+    private static boolean tryRefillDuplicateWeapon(Inventory inventory, Weapon incoming) {
+        for (EntityObject held : inventory.getItems()) {
+            if (held.getClass() == incoming.getClass() && held instanceof Weapon) {
+                Weapon heldWeapon = (Weapon) held;
+                heldWeapon.setBullets(heldWeapon.getMagCapacity());
+                return true;
+            }
         }
         return false;
     }

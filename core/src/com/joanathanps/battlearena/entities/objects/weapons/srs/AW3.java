@@ -13,7 +13,7 @@ public class AW3 extends SniperRifle {
     private void setAttributes() {
         setName(getI18n().getBundle().get("aW3"));
         setIcon(getResources().getTexture(ResourceHandler.TexturePath.AW3));
-        setDamage(90);
+        setDamage(135);
         setRateOfFire(5);
         setReloadTime(5);
         setMagCapacity(1);

@@ -20,10 +20,13 @@ public class Enemy extends Soldier implements SteeringBehavior, Lootable {
     private boolean playerIsColliding;
     private float pursuitMultiplier = 1f;
 
-    public Enemy(Match match, float radius, float linearDamping, int speed, Vector2 position) {
+    private static int botCounter = 1;
+
+    public Enemy(Match match, float radius, float linearDamping, int speed, Vector2 position, int index) {
         super(match, position, radius, linearDamping, speed, AnimationRegion.SOLDIER, ENEMY_TAG,
                 (short) (DEFAULT_TAG | BUILDING_TAG | LOOT_TAG | WATER_TAG | PLAYER_TAG | ENEMY_TAG | BULLET_TAG),
-                null);
+                null, BotNames.getNextName(index));
+        setColor(1.0f, 0.4f, 0.3f, 1.0f);
         isVisible = true;
         setUserData();
     }

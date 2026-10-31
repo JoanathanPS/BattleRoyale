@@ -2,6 +2,7 @@ package com.joanathanps.battlearena.gui;
 
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.OrthographicCamera;
+import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.math.MathUtils;
@@ -20,6 +21,7 @@ import com.badlogic.gdx.utils.viewport.Viewport;
 import com.joanathanps.battlearena.entities.Enemy;
 import com.joanathanps.battlearena.entities.objects.Empty;
 import com.joanathanps.battlearena.entities.objects.Inventory;
+import com.joanathanps.battlearena.events.SafeZoneController;
 import com.joanathanps.battlearena.forge.WorldBuilder;
 import com.joanathanps.battlearena.graphics.FontGenerator;
 import com.joanathanps.battlearena.graphics.ResourceHandler;
@@ -44,6 +46,28 @@ public class HUD implements Disposable {
     private Texture minimapPlayerMark;
     private Rectangle minimapMask;
     private int minimapOffset = 10;
+
+    // Safe zone and radar minimap elements
+    private Sprite minimapZoneDot;
+    private Sprite minimapZoneArrow;
+    private Texture minimapZoneCircleTex;
+    private Texture minimapArrowTex;
+    private Texture minimapGunshotTex;
+    private Sprite minimapGunshotDot;
+
+    public static class GunshotMarker {
+        public final Vector2 pos;
+        public float timeRemaining;
+
+        public GunshotMarker(Vector2 pos) {
+            this.pos = new Vector2(pos);
+            this.timeRemaining = 1.8f;
+        }
+    }
+    private final ArrayList<GunshotMarker> gunshotMarkers = new ArrayList<>();
+
+    // PUBG-style Nearby Loot Widget
+    private NearbyLootWidget nearbyLootWidget;
 
     private Image eventBackground;
 
@@ -131,6 +155,72 @@ public class HUD implements Disposable {
         minimapMask = new Rectangle();
         Rectangle clipBounds = new Rectangle(minimapOffset, minimapOffset, 200, 200);
         ScissorStack.calculateScissors(stage.getCamera(), stage.getBatch().getTransformMatrix(), clipBounds, minimapMask);
+
+        // 1. Safe zone center dot
+        Pixmap dotPixmap = new Pixmap(12, 12, Pixmap.Format.RGBA8888);
+        dotPixmap.setColor(0, 0, 0, 0);
+        dotPixmap.fill();
+        dotPixmap.setColor(0.35f, 0.92f, 1f, 1f);
+        dotPixmap.fillCircle(6, 6, 5);
+        Texture dotTex = new Texture(dotPixmap);
+        dotPixmap.dispose();
+        minimapZoneDot = new Sprite(dotTex);
+        minimapZoneDot.setSize(8, 8);
+
+        // 2. High-resolution smooth anti-aliased safe zone circle boundary ring
+        Pixmap circlePixmap = new Pixmap(512, 512, Pixmap.Format.RGBA8888);
+        circlePixmap.setColor(0, 0, 0, 0);
+        circlePixmap.fill();
+
+        float center = 256f;
+        float ringRadius = 248f;
+        float ringThickness = 4.5f;
+
+        for (int y = 0; y < 512; y++) {
+            for (int x = 0; x < 512; x++) {
+                float dx = x - center;
+                float dy = y - center;
+                float dist = (float) Math.sqrt(dx * dx + dy * dy);
+                float diff = Math.abs(dist - ringRadius);
+                if (diff <= ringThickness + 2.5f) {
+                    float alpha = Math.max(0f, Math.min(1f, 1f - (diff - (ringThickness - 1f)) / 3.5f));
+                    circlePixmap.setColor(0.35f, 0.92f, 1f, alpha * 0.92f);
+                    circlePixmap.drawPixel(x, y);
+                }
+            }
+        }
+        minimapZoneCircleTex = new Texture(circlePixmap);
+        minimapZoneCircleTex.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
+        circlePixmap.dispose();
+
+        // 3. Directional arrow nudge on minimap edge
+        Pixmap arrowPixmap = new Pixmap(20, 20, Pixmap.Format.RGBA8888);
+        arrowPixmap.setColor(0, 0, 0, 0);
+        arrowPixmap.fill();
+        arrowPixmap.setColor(0.25f, 0.95f, 1f, 1f);
+        arrowPixmap.fillTriangle(10, 0, 2, 18, 18, 18);
+        minimapArrowTex = new Texture(arrowPixmap);
+        minimapArrowTex.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
+        arrowPixmap.dispose();
+        minimapZoneArrow = new Sprite(minimapArrowTex);
+        minimapZoneArrow.setSize(12, 12);
+
+        // 4. Solid clean red gunshot marker (only for active shooting)
+        Pixmap gunshotPixmap = new Pixmap(16, 16, Pixmap.Format.RGBA8888);
+        gunshotPixmap.setColor(0, 0, 0, 0);
+        gunshotPixmap.fill();
+        gunshotPixmap.setColor(0.95f, 0.15f, 0.15f, 1f);
+        gunshotPixmap.fillCircle(8, 8, 6);
+        gunshotPixmap.setColor(1f, 0.8f, 0.8f, 0.9f);
+        gunshotPixmap.fillCircle(8, 8, 2);
+        minimapGunshotTex = new Texture(gunshotPixmap);
+        minimapGunshotTex.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
+        gunshotPixmap.dispose();
+        minimapGunshotDot = new Sprite(minimapGunshotTex);
+        minimapGunshotDot.setSize(8, 8);
+
+        // 5. Nearby loot widget
+        nearbyLootWidget = new NearbyLootWidget(match);
     }
 
     private void forgeHealthDisplay() {
@@ -282,9 +372,108 @@ public class HUD implements Disposable {
         match.getBatch().draw(minimapPlayerMark,
                 pCenter(minimapFrame.getWidth()) - pCenter(minimapPlayerMark.getWidth()) + minimapOffset,
                 pCenter(minimapFrame.getHeight()) - pCenter(minimapPlayerMark.getHeight()) + minimapOffset);
+
+        // Minimap center in screen coords (player is always here)
+        float mapCenterX = pCenter(minimapFrame.getWidth()) + minimapOffset; // 110
+        float mapCenterY = pCenter(minimapFrame.getHeight()) + minimapOffset; // 110
+
+        // Minimap frame bounds (screen coords)
+        float frameLeft   = minimapOffset + 4;
+        float frameRight  = minimapOffset + minimapFrame.getWidth() - 4;
+        float frameBottom = minimapOffset + 4;
+        float frameTop    = minimapOffset + minimapFrame.getHeight() - 4;
+
+        // --- 1. Draw Safe Zone Boundary Circle & Directional Arrow on Minimap ---
+        SafeZoneController szc = match.getSafeZoneController();
+        if (szc != null) {
+            Vector2[] offsets = szc.getSafezoneOffsets();
+            int offsetIndex = szc.getCurrentOffset();
+            Vector2 offset = offsets[offsetIndex];
+
+            // Safe zone world-center
+            float szWorldX = offset.x + 41f;
+            float szWorldY = offset.y + 41f;
+
+            // Relative offset from player to safe zone, scaled to minimap pixels
+            float relX = (szWorldX - playerPosition.x) * 7.2f;
+            float relY = (szWorldY - playerPosition.y) * 7.2f;
+
+            float dotScreenX = mapCenterX + relX;
+            float dotScreenY = mapCenterY + relY;
+
+            // Radius in world units -> minimap pixels
+            float szWorldRadius = 30.5f;
+            int event = szc.getCurrentEvent();
+            if (event >= 3 && event <= 4) szWorldRadius = 21f;
+            else if (event >= 5 && event <= 6) szWorldRadius = 13f;
+            else if (event >= 7 && event <= 8) szWorldRadius = 6.5f;
+            float szPixelRadius = szWorldRadius * 7.2f;
+
+            // Draw circular safe zone boundary ring on minimap
+            match.getBatch().setColor(0.3f, 0.9f, 1f, 0.75f);
+            match.getBatch().draw(minimapZoneCircleTex,
+                    dotScreenX - szPixelRadius, dotScreenY - szPixelRadius,
+                    szPixelRadius * 2f, szPixelRadius * 2f);
+            match.getBatch().setColor(Color.WHITE);
+
+            // Draw center dot
+            minimapZoneDot.setCenter(dotScreenX, dotScreenY);
+            minimapZoneDot.draw(match.getBatch());
+
+            // Directional arrow nudge on minimap edge pointing to safe zone
+            float dx = relX;
+            float dy = relY;
+            float len = (float) Math.sqrt(dx * dx + dy * dy);
+            if (len > 0) {
+                dx /= len;
+                dy /= len;
+            }
+            float edgeMargin = 8f;
+            float arrowX = MathUtils.clamp(mapCenterX + dx * 86f, frameLeft + edgeMargin, frameRight - edgeMargin);
+            float arrowY = MathUtils.clamp(mapCenterY + dy * 86f, frameBottom + edgeMargin, frameTop - edgeMargin);
+            float angleDeg = MathUtils.radiansToDegrees * MathUtils.atan2(dy, dx) - 90f;
+            minimapZoneArrow.setCenter(arrowX, arrowY);
+            minimapZoneArrow.setOrigin(minimapZoneArrow.getWidth() / 2f, minimapZoneArrow.getHeight() / 2f);
+            minimapZoneArrow.setRotation(angleDeg);
+            minimapZoneArrow.draw(match.getBatch());
+        }
+
+        // --- 2. Draw Solid Red Gunshot Indicators on Minimap (ONLY when gunshots occur) ---
+        for (int i = gunshotMarkers.size() - 1; i >= 0; i--) {
+            GunshotMarker gm = gunshotMarkers.get(i);
+            gm.timeRemaining -= delta;
+            if (gm.timeRemaining <= 0) {
+                gunshotMarkers.remove(i);
+                continue;
+            }
+
+            float relEx = (gm.pos.x - playerPosition.x) * 7.2f;
+            float relEy = (gm.pos.y - playerPosition.y) * 7.2f;
+            float eScreenX = mapCenterX + relEx;
+            float eScreenY = mapCenterY + relEy;
+
+            boolean inBounds = eScreenX >= frameLeft && eScreenX <= frameRight
+                    && eScreenY >= frameBottom && eScreenY <= frameTop;
+
+            if (inBounds) {
+                // Solid clean red (no blinking)
+                float alpha = MathUtils.clamp(gm.timeRemaining / 1.8f, 0.2f, 1f);
+                minimapGunshotDot.setColor(1f, 0.15f, 0.15f, alpha);
+                minimapGunshotDot.setCenter(eScreenX, eScreenY);
+                minimapGunshotDot.draw(match.getBatch());
+            }
+        }
+
         match.getBatch().flush();
         ScissorStack.popScissors();
         match.getBatch().end();
+    }
+
+    public void drawNearbyLoot(float delta) {
+        if (nearbyLootWidget != null) {
+            nearbyLootWidget.update(delta);
+            nearbyLootWidget.draw(match.getBatch());
+        }
     }
 
     public void drawHealthBars(float delta, int health, int armor) {
@@ -341,7 +530,7 @@ public class HUD implements Disposable {
     }
 
     public void updateEnemyStatus(float delta, WorldBuilder worldBuilder) {
-        int alive = 40;
+        int alive = worldBuilder.getEnemies().size() + 1;
         for (Enemy enemy : worldBuilder.getEnemies()) {
             if (enemy.isDead()) {
                 alive--;
@@ -415,9 +604,19 @@ public class HUD implements Disposable {
         }, 2);
     }
 
+    public void recordGunshot(Vector2 position) {
+        if (position != null) {
+            gunshotMarkers.add(new GunshotMarker(position));
+        }
+    }
+
     @Override
     public void dispose() {
         stage.dispose();
+        if (nearbyLootWidget != null) nearbyLootWidget.dispose();
+        if (minimapZoneCircleTex != null) minimapZoneCircleTex.dispose();
+        if (minimapArrowTex != null) minimapArrowTex.dispose();
+        if (minimapGunshotTex != null) minimapGunshotTex.dispose();
     }
 
     public Stage getStage() {

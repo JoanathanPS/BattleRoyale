@@ -72,7 +72,7 @@ public class GameOver implements Disposable {
         }
         window.add(title).row();
 
-        int rank = 40;
+        int rank = match.getWorldBuilder().getEnemies().size() + 1;
 
         for (Enemy enemy : match.getWorldBuilder().getEnemies()) {
             if (enemy.isDead()) {
@@ -144,7 +144,7 @@ public class GameOver implements Disposable {
                 String result = isWinner ? "WIN" : "LOSS";
                 int score = kills * 100 + (isWinner ? 500 : 0) + (duration * 10);
 
-                repository.saveMatchResult("Player", match.getDifficulty().getLabel(), score, kills, duration, result);
+                repository.saveMatchResult(match.getPlayer().getName(), match.getDifficulty().getLabel(), score, kills, duration, result);
             }
         } catch (Exception e) {
             System.err.println("Error saving match result: " + e.getMessage());

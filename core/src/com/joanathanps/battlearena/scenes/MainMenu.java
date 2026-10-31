@@ -19,8 +19,10 @@ import com.joanathanps.battlearena.events.InputTracker;
 import com.joanathanps.battlearena.graphics.FontGenerator;
 import com.joanathanps.battlearena.graphics.ResourceHandler;
 import com.joanathanps.battlearena.gui.LeaderboardScreen;
+import com.joanathanps.battlearena.gui.SettingsScreen;
 import com.joanathanps.battlearena.languages.Internationalization;
 import com.joanathanps.battlearena.scheme.Difficulty;
+import com.joanathanps.battlearena.scheme.SystemProps;
 
 import static com.joanathanps.battlearena.scheme.PhysicsAdapter.pCenter;
 import static com.joanathanps.battlearena.scheme.PlayerSettings.GAME_HEIGHT;
@@ -62,8 +64,29 @@ public class MainMenu implements Screen {
         setupCursor();
         forgeMenu();
         forgeLoadingScreen();
-        if (Boolean.getBoolean("bral.autodemo")) {
-            String demoDifficulty = System.getProperty("bral.autodemo.difficulty", "MEDIUM");
+        if (SystemProps.getBoolean("bral.autoleaderboard")) {
+            Gdx.app.postRunnable(new Runnable() {
+                @Override
+                public void run() {
+                    BattleRoyaleArenaLite game = (BattleRoyaleArenaLite) Gdx.app.getApplicationListener();
+                    MatchResultsRepository repository = game.getMatchResultsRepository();
+                    if (repository != null) {
+                        game.setScreen(new LeaderboardScreen(repository));
+                    }
+                }
+            });
+        }
+        if (SystemProps.getBoolean("bral.autosettings")) {
+            Gdx.app.postRunnable(new Runnable() {
+                @Override
+                public void run() {
+                    BattleRoyaleArenaLite game = (BattleRoyaleArenaLite) Gdx.app.getApplicationListener();
+                    game.setScreen(new SettingsScreen());
+                }
+            });
+        }
+        if (SystemProps.getBoolean("bral.autodemo")) {
+            String demoDifficulty = SystemProps.getProperty("bral.autodemo.difficulty", "MEDIUM");
             final Difficulty difficulty = Difficulty.valueOf(demoDifficulty);
             Gdx.app.postRunnable(new Runnable() {
                 @Override
@@ -116,7 +139,6 @@ public class MainMenu implements Screen {
         TextButton playButton = new TextButton(i18n.getBundle().get("play"), skin, "white-button");
         TextButton leaderboardButton = new TextButton("LEADERBOARD", skin, "white-button");
         TextButton optionsButton = new TextButton(i18n.getBundle().get("settings"), skin, "white-button");
-        TextButton helpButton = new TextButton(i18n.getBundle().get("help"), skin, "white-button");
         TextButton exitButton = new TextButton(i18n.getBundle().get("quit"), skin, "white-button");
 
         playButton.addListener(new ClickListener(){
@@ -148,6 +170,14 @@ public class MainMenu implements Screen {
                 if (repository != null) {
                     game.setScreen(new LeaderboardScreen(repository));
                 }
+            }
+        });
+
+        optionsButton.addListener(new ClickListener(){
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                BattleRoyaleArenaLite game = (BattleRoyaleArenaLite)Gdx.app.getApplicationListener();
+                game.setScreen(new SettingsScreen());
             }
         });
 
@@ -196,8 +226,6 @@ public class MainMenu implements Screen {
         table.add(leaderboardButton).padLeft(pCenter(GAME_WIDTH) - pCenter(logo.getWidth()) + 20).align(Align.left).padTop(-20);
         table.row();
         table.add(optionsButton).padLeft(pCenter(GAME_WIDTH) - pCenter(logo.getWidth()) + 20).align(Align.left).padTop(-20);
-        table.row();
-        table.add(helpButton).padLeft(pCenter(GAME_WIDTH) - pCenter(logo.getWidth()) + 20).align(Align.left).padTop(-20);
         table.row();
         table.add(difficultyLabel).padLeft(pCenter(GAME_WIDTH) - pCenter(logo.getWidth()) + 30).align(Align.left).padTop(-20);
         table.row();

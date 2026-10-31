@@ -3,15 +3,14 @@ package com.joanathanps.battlearena.languages;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.files.FileHandle;
 import com.badlogic.gdx.utils.I18NBundle;
+import com.joanathanps.battlearena.scheme.PlayerSettings;
 
 import java.util.Locale;
-
-import static com.joanathanps.battlearena.scheme.PlayerSettings.LANG;
 
 public class Internationalization {
 
     public enum Language {
-        ENGLISH, BRAZILIAN_PORTUGUESE
+        ENGLISH
     }
 
     private I18NBundle bundle;
@@ -21,12 +20,16 @@ public class Internationalization {
     }
 
     private void setupBundle() {
+        bundle = createBundleFor(PlayerSettings.getLanguage());
+    }
+
+    private static I18NBundle createBundleFor(Language language) {
         FileHandle baseFileHandle = Gdx.files.internal("localization/BattleRoyaleArenaLite");
         Locale locale = new Locale("", "");
-        if (LANG == Language.BRAZILIAN_PORTUGUESE) {
-            locale = new Locale("pt", "BR");
+        if (language == Language.ENGLISH) {
+            locale = new Locale("en", "US");
         }
-        bundle = I18NBundle.createBundle(baseFileHandle, locale);
+        return I18NBundle.createBundle(baseFileHandle, locale);
     }
 
     public I18NBundle getBundle() {
@@ -34,11 +37,7 @@ public class Internationalization {
     }
 
     public void setLanguage(Language language) {
-        FileHandle baseFileHandle = Gdx.files.internal("localization/BattleRoyaleArenaLite");
-        Locale locale = new Locale("", "");
-        if (language == Language.BRAZILIAN_PORTUGUESE) {
-            locale = new Locale("pt", "BR");
-        }
-        bundle = I18NBundle.createBundle(baseFileHandle, locale);
+        PlayerSettings.setLanguage(language);
+        bundle = createBundleFor(language);
     }
 }

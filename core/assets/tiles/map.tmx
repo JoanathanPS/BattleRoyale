@@ -1339,6 +1339,36 @@
   <object id="1164" x="5800" y="5148" width="32" height="32">
    <ellipse/>
   </object>
+  <object id="1165" x="2300" y="3300" width="32" height="32">
+   <ellipse/>
+  </object>
+  <object id="1166" x="5200" y="1100" width="32" height="32">
+   <ellipse/>
+  </object>
+  <object id="1167" x="6200" y="2300" width="32" height="32">
+   <ellipse/>
+  </object>
+  <object id="1168" x="7600" y="1800" width="32" height="32">
+   <ellipse/>
+  </object>
+  <object id="1169" x="2400" y="4800" width="32" height="32">
+   <ellipse/>
+  </object>
+  <object id="1170" x="4600" y="2800" width="32" height="32">
+   <ellipse/>
+  </object>
+  <object id="1171" x="6900" y="6600" width="32" height="32">
+   <ellipse/>
+  </object>
+  <object id="1172" x="1100" y="6200" width="32" height="32">
+   <ellipse/>
+  </object>
+  <object id="1173" x="3600" y="6900" width="32" height="32">
+   <ellipse/>
+  </object>
+  <object id="1174" x="6400" y="6200" width="32" height="32">
+   <ellipse/>
+  </object>
  </objectgroup>
  <layer name="Ocean" width="256" height="256">
   <data encoding="base64" compression="zlib">

@@ -15,12 +15,16 @@ public class PlayerInventory extends Inventory{
     public void useSelectedItem(Soldier soldier) {
         Object selectedSlot = getItem(getMatch().getHud().getSelectedSlot());
         if (selectedSlot.getClass() == Medkit.class) {
-            setSelectedBeingUsed(true);
-            getMatch().getProgress().setProgressSpeed(Medkit.timeToTransform());
-            getMatch().getPlayer().blockActions();
-            getMatch().getProgress().setActivity("healing");
+            if (soldier.getHealth() < 100) {
+                setSelectedBeingUsed(true);
+                getMatch().getProgress().setProgressSpeed(Medkit.timeToTransform());
+                getMatch().getPlayer().blockActions();
+                getMatch().getProgress().setActivity("healing");
+            }
         } else if (Weapon.class.isAssignableFrom(selectedSlot.getClass())) {
             ((Weapon)selectedSlot).shoot(soldier);
+        } else if (selectedSlot.getClass() == Empty.class) {
+            soldier.punch();
         }
     }
 

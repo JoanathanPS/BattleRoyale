@@ -1,6 +1,7 @@
 package com.joanathanps.battlearena.entities.tiles;
 
 import com.badlogic.gdx.math.Rectangle;
+import com.joanathanps.battlearena.entities.objects.EntityObject;
 import com.joanathanps.battlearena.scenes.Match;
 
 public class Crate extends Loot {
@@ -16,8 +17,12 @@ public class Crate extends Loot {
     }
 
     private void addItems() {
-        for (int i = 0; i < 8; i++) {
-            getItems().add(getRandomItem());
+        int itemCount = com.joanathanps.battlearena.scheme.MathUtils.randomRange(3, 4);
+        for (int i = 0; i < itemCount; i++) {
+            EntityObject item = getRandomItemWithoutDuplicateWeapon(getItems());
+            if (item != null) {
+                getItems().add(item);
+            }
         }
     }
 

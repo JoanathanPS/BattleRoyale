@@ -31,6 +31,7 @@ import com.joanathanps.battlearena.graphics.ResourceHandler;
 import com.joanathanps.battlearena.gui.*;
 import com.joanathanps.battlearena.languages.Internationalization;
 import com.joanathanps.battlearena.scheme.Difficulty;
+import com.joanathanps.battlearena.scheme.SystemProps;
 import com.joanathanps.battlearena.scheme.MathUtils;
 import com.joanathanps.battlearena.scheme.PhysicsAdapter;
 
@@ -76,8 +77,8 @@ public class Match implements Screen {
     private Texture deadLoot;
 
     // dev/verification mode: watches a full match without any player input (system property -Dbral.autodemo=true)
-    private static final boolean AUTODEMO = Boolean.getBoolean("bral.autodemo");
-    private static final float AUTODEMO_SECONDS = Float.parseFloat(System.getProperty("bral.autodemo.seconds", "60"));
+    private static final boolean AUTODEMO = SystemProps.getBoolean("bral.autodemo");
+    private static final float AUTODEMO_SECONDS = Float.parseFloat(SystemProps.getProperty("bral.autodemo.seconds", "60"));
     private float autodemoElapsed;
     private float autodemoLogTick;
 
@@ -305,7 +306,7 @@ public class Match implements Screen {
             gameOver.forgeGameOverScreen();
             setState(GameState.GAME_OVER);
         } else {
-            int enemiesAlive = 39;
+            int enemiesAlive = worldBuilder.getEnemies().size();
             for (Enemy enemy: worldBuilder.getEnemies()) {
                 if (enemy.isDead()) {
                     enemiesAlive--;
@@ -489,6 +490,9 @@ public class Match implements Screen {
         if (state != GameState.TACTICAL) {
             hud.drawMinimap(delta, player.getBody().getPosition());
         }
+        if (state == GameState.RUNNING || state == GameState.LOOTING) {
+            hud.drawNearbyLoot(delta);
+        }
     }
 
     private void renderProgressDisplay(float delta) {
@@ -567,6 +571,9 @@ public class Match implements Screen {
 
     @Override
     public void pause() {
+        if (AUTODEMO) {
+            return;
+        }
         pauseMatch();
     }
 

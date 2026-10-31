@@ -19,6 +19,7 @@ import com.badlogic.gdx.utils.viewport.Viewport;
 import com.joanathanps.battlearena.BattleRoyaleArenaLite;
 import com.joanathanps.battlearena.database.MatchResult;
 import com.joanathanps.battlearena.database.MatchResultsRepository;
+import com.joanathanps.battlearena.scheme.SystemProps;
 import com.joanathanps.battlearena.graphics.FontGenerator;
 import com.joanathanps.battlearena.graphics.ResourceHandler;
 import com.joanathanps.battlearena.scenes.MainMenu;
@@ -41,6 +42,11 @@ public class LeaderboardScreen implements Screen {
 
     private int width = 700;
     private int height = 500;
+
+    private static final boolean AUTOLEADERBOARD = SystemProps.getBoolean("bral.autoleaderboard");
+    private static final float AUTOLEADERBOARD_SECONDS = Float.parseFloat(
+            SystemProps.getProperty("bral.autoleaderboard.seconds", "6"));
+    private float autoExitElapsed;
 
     // Async results are produced on a background thread (desktop) and consumed on the render thread.
     private volatile List<MatchResult> pendingResults;
@@ -186,6 +192,15 @@ public class LeaderboardScreen implements Screen {
 
     @Override
     public void render(float delta) {
+        if (AUTOLEADERBOARD) {
+            autoExitElapsed += delta;
+            if (autoExitElapsed >= AUTOLEADERBOARD_SECONDS) {
+                if (pendingError == null && pendingResults == null) {
+                    Gdx.app.log("LEADERBOARD", "autotest: fetch still pending, forcing exit");
+                }
+                Gdx.app.exit();
+            }
+        }
         consumeResults();
         Gdx.gl.glClearColor(0, 0, 0, 1);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
