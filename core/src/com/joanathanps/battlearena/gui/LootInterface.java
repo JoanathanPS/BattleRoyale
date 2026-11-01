@@ -282,10 +282,6 @@ public class LootInterface implements Disposable {
 
     private void handleInput(float delta) {
         if ((Gdx.app.getInput().isKeyJustPressed(Input.Keys.E) ||
-                Gdx.app.getInput().isKeyJustPressed(Input.Keys.A) ||
-                Gdx.app.getInput().isKeyJustPressed(Input.Keys.S) ||
-                Gdx.app.getInput().isKeyJustPressed(Input.Keys.W) ||
-                Gdx.app.getInput().isKeyJustPressed(Input.Keys.D) ||
                 Gdx.app.getInput().isKeyJustPressed(Input.Keys.ESCAPE)) &&
                 selectedInventoryItem == null && selectedLootItem == null &&
                 selectedEquipmentItem == null){

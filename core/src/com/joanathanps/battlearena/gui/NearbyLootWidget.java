@@ -132,10 +132,10 @@ public class NearbyLootWidget implements Disposable {
     }
 
     private void handleInput() {
-        if (Gdx.input.isKeyJustPressed(Input.Keys.UP) || Gdx.input.isKeyJustPressed(Input.Keys.W)) {
+        if (Gdx.input.isKeyJustPressed(Input.Keys.UP)) {
             selectedIndex = (selectedIndex - 1 + nearbyItems.size()) % nearbyItems.size();
         }
-        if (Gdx.input.isKeyJustPressed(Input.Keys.DOWN) || Gdx.input.isKeyJustPressed(Input.Keys.S)) {
+        if (Gdx.input.isKeyJustPressed(Input.Keys.DOWN)) {
             selectedIndex = (selectedIndex + 1) % nearbyItems.size();
         }
 
@@ -204,7 +204,7 @@ public class NearbyLootWidget implements Disposable {
 
         // Tip text
         tipFont.setColor(new Color(0.7f, 0.7f, 0.7f, 1f));
-        tipFont.draw(batch, "[ENTER] / Click to pickup", PANEL_X + 12f, panelY + 16f);
+        tipFont.draw(batch, "[Up/Down] Select  [Enter/E] Loot", PANEL_X + 12f, panelY + 16f);
 
         // 2. Draw Item Rows
         float startY = panelY + panelH - 46f - ROW_H;

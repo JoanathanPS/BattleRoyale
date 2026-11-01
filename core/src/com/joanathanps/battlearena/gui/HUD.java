@@ -14,6 +14,7 @@ import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.utils.ScissorStack;
 import com.badlogic.gdx.scenes.scene2d.utils.SpriteDrawable;
+import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.utils.Disposable;
 import com.badlogic.gdx.utils.Timer;
 import com.badlogic.gdx.utils.viewport.FitViewport;
@@ -121,13 +122,15 @@ public class HUD implements Disposable {
 
     private void forgeEventDisplay() {
         eventBackground = new Image(match.getResources().getTexture(ResourceHandler.TexturePath.EVENT_BACKGROUND));
-        eventBackground.setPosition(pCenter(GAME_WIDTH) - pCenter( eventBackground.getWidth()),
-                GAME_HEIGHT - eventBackground.getHeight());
+        float bgX = pCenter(GAME_WIDTH) - pCenter(eventBackground.getWidth());
+        float bgY = GAME_HEIGHT - eventBackground.getHeight();
+        eventBackground.setPosition(bgX, bgY);
         stage.addActor(eventBackground);
 
         Table table = new Table();
+        table.setSize(eventBackground.getWidth(), eventBackground.getHeight());
+        table.setPosition(bgX, bgY);
         table.top();
-        table.setFillParent(true);
 
         event = new Label("",
                 new Label.LabelStyle(
@@ -135,15 +138,17 @@ public class HUD implements Disposable {
                         Color.WHITE
                 )
         );
-        table.add(event).fillX().padTop(3).row();
+        event.setAlignment(Align.center);
+        table.add(event).center().padTop(4).row();
 
         timeToNextEvent = new Label("",
                 new Label.LabelStyle(
-                        FontGenerator.generate(ResourceHandler.FontPath.BOMBARD, 22, false),
+                        FontGenerator.generate(ResourceHandler.FontPath.BOMBARD, 18, false),
                         Color.WHITE
                 )
         );
-        table.add(timeToNextEvent).padTop(1).row();
+        timeToNextEvent.setAlignment(Align.center);
+        table.add(timeToNextEvent).center().padTop(1).row();
 
         stage.addActor(table);
     }
@@ -581,7 +586,7 @@ public class HUD implements Disposable {
         if (isInZoneEvent) {
             timeToNextEvent.setVisible(false);
             event.setStyle(new Label.LabelStyle(
-                    FontGenerator.generate(ResourceHandler.FontPath.BOMBARD, 26, false), Color.WHITE
+                    FontGenerator.generate(ResourceHandler.FontPath.BOMBARD, 18, false), Color.WHITE
             ));
         } else {
             timeToNextEvent.setVisible(true);
@@ -589,6 +594,7 @@ public class HUD implements Disposable {
                     FontGenerator.generate(ResourceHandler.FontPath.BOMBARD, 12, false), Color.WHITE
             ));
         }
+        event.setAlignment(Align.center);
     }
 
     public void notifyKill(int kills) {
