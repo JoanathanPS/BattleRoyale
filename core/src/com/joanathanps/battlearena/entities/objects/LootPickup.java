@@ -24,21 +24,21 @@ public final class LootPickup {
             if (item.getClass() == Empty.class) {
                 continue;
             }
-            if (Helmet.class.isAssignableFrom(item.getClass())) {
+            if (item instanceof Helmet) {
                 if (tryEquip(inventory, 0, item)) {
                     items.set(i, new Empty(inventory.getMatch()));
                 }
-            } else if (Armor.class.isAssignableFrom(item.getClass())) {
+            } else if (item instanceof Armor) {
                 if (tryEquip(inventory, 1, item)) {
                     items.set(i, new Empty(inventory.getMatch()));
                 }
-            } else if (Weapon.class.isAssignableFrom(item.getClass())
+            } else if (item instanceof Weapon
                     && tryRefillDuplicateWeapon(inventory, (Weapon) item)) {
                 // Same weapon already held — ammo topped up, consume the ground copy
                 items.set(i, new Empty(inventory.getMatch()));
             } else if (tryAddToFreeSlot(inventory, item)) {
                 items.set(i, new Empty(inventory.getMatch()));
-            } else if (Weapon.class.isAssignableFrom(item.getClass()) && trySwapWeapon(inventory, item)) {
+            } else if (item instanceof Weapon && trySwapWeapon(inventory, item)) {
                 items.set(i, new Empty(inventory.getMatch()));
             }
         }
@@ -54,16 +54,16 @@ public final class LootPickup {
         }
 
         boolean collected = false;
-        if (Helmet.class.isAssignableFrom(item.getClass())) {
+        if (item instanceof Helmet) {
             collected = tryEquip(inventory, 0, item);
-        } else if (Armor.class.isAssignableFrom(item.getClass())) {
+        } else if (item instanceof Armor) {
             collected = tryEquip(inventory, 1, item);
-        } else if (Weapon.class.isAssignableFrom(item.getClass())
+        } else if (item instanceof Weapon
                 && tryRefillDuplicateWeapon(inventory, (Weapon) item)) {
             collected = true;
         } else if (tryAddToFreeSlot(inventory, item)) {
             collected = true;
-        } else if (Weapon.class.isAssignableFrom(item.getClass())) {
+        } else if (item instanceof Weapon) {
             // Swap with selected slot if inventory is full
             int selectedSlot = inventory.getMatch().getHud().getSelectedSlot();
             EntityObject oldItem = inventory.getItems().get(selectedSlot);
@@ -132,7 +132,7 @@ public final class LootPickup {
     private static boolean trySwapWeapon(Inventory inventory, EntityObject item) {
         for (int i = 0; i < inventory.getItems().size(); i++) {
             EntityObject held = inventory.getItems().get(i);
-            if (Weapon.class.isAssignableFrom(held.getClass()) && item.getRarity() < held.getRarity()) {
+            if (held instanceof Weapon && item.getRarity() < held.getRarity()) {
                 inventory.getItems().set(i, item);
                 identifyItem(item);
                 return true;
@@ -142,7 +142,7 @@ public final class LootPickup {
     }
 
     private static void identifyItem(EntityObject item) {
-        if (Weapon.class.isAssignableFrom(item.getClass())) {
+        if (item instanceof Weapon) {
             ((Weapon) item).setBullets(((Weapon) item).getMagCapacity());
         }
     }

@@ -223,8 +223,8 @@ public class LootInterface implements Disposable {
             }
         } else {
             if (acceptInventoryItem && selectedInventoryItem != null &&
-                    !Armor.class.isAssignableFrom(destinyList.get(index).getClass()) &&
-                    !Helmet.class.isAssignableFrom(destinyList.get(index).getClass())) {
+                    !(destinyList.get(index) instanceof Armor) &&
+                    !(destinyList.get(index) instanceof Helmet)) {
                 inventoryItems.set(selectedIndex, destinyList.get(index));
                 destinyList.set(index, selectedInventoryItem);
                 onItemDropComplete();
@@ -245,18 +245,18 @@ public class LootInterface implements Disposable {
     }
 
     private boolean itemIsEquipment(EntityObject selectedItem) {
-        return Helmet.class.isAssignableFrom(selectedItem.getClass())  ||
-                Armor.class.isAssignableFrom(selectedItem.getClass());
+        return selectedItem instanceof Helmet ||
+                selectedItem instanceof Armor;
     }
 
     private boolean equipmentFitIndex(EntityObject selectedItem, int index) {
-        return ((Helmet.class.isAssignableFrom(selectedItem.getClass()) && index == 0) ||
-                (Armor.class.isAssignableFrom(selectedItem.getClass()) && index == 1));
+        return ((selectedItem instanceof Helmet && index == 0) ||
+                (selectedItem instanceof Armor && index == 1));
     }
 
     private boolean equipmentsMatch(EntityObject objA, EntityObject objB) {
-        return (Helmet.class.isAssignableFrom(objA.getClass()) && Helmet.class.isAssignableFrom(objB.getClass())) ||
-                Armor.class.isAssignableFrom(objA.getClass()) && Armor.class.isAssignableFrom(objB.getClass());
+        return (objA instanceof Helmet && objB instanceof Helmet) ||
+                (objA instanceof Armor && objB instanceof Armor);
     }
 
     private void onItemDropComplete() {

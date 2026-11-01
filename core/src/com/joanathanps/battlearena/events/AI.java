@@ -404,7 +404,7 @@ public class AI {
 
     private void exchangeItem(ArrayList<EntityObject> items, int index) {
         if (!hasItem(items.get(index))) {
-            if (Helmet.class.isAssignableFrom(items.get(index).getClass())) {
+            if (items.get(index) instanceof Helmet) {
                 if (!hasHelmet()) {
                     if (soldier.getInventory().getEquipmentItems().get(0).getClass() == Empty.class) {
                         soldier.getInventory().getEquipmentItems().set(0, items.get(index));
@@ -415,7 +415,7 @@ public class AI {
                     soldier.getInventory().getEquipmentItems().set(0, items.get(index));
                     items.set(index, escrow);
                 }
-            } else if (Armor.class.isAssignableFrom(items.get(index).getClass())) {
+            } else if (items.get(index) instanceof Armor) {
                 if (!hasArmor()) {
                     if (soldier.getInventory().getEquipmentItems().get(1).getClass() == Empty.class) {
                         soldier.getInventory().getEquipmentItems().set(1, items.get(index));
@@ -428,7 +428,7 @@ public class AI {
                 }
             } else {
                 if (!isInventoryFull()) {
-                    if (!Weapon.class.isAssignableFrom(items.get(index).getClass()) || !hasWeapon(soldier)) {
+                    if (!(items.get(index) instanceof Weapon) || !hasWeapon(soldier)) {
                         for (int j = 0; j < soldier.getInventory().getItems().size(); j++) {
                             if (soldier.getInventory().getItems().get(j).getClass() == Empty.class) {
                                 soldier.getInventory().getItems().set(j, items.get(index));
@@ -452,14 +452,14 @@ public class AI {
     }
 
     private void readyItem(EntityObject item) {
-        if (Weapon.class.isAssignableFrom(item.getClass())) {
+        if (item instanceof Weapon) {
             ((Weapon) item).fillMagazine();
         }
     }
 
     private boolean hasItem(EntityObject lootItem) {
-        if (Armor.class.isAssignableFrom(lootItem.getClass()) ||
-                Helmet.class.isAssignableFrom(lootItem.getClass())) {
+        if (lootItem instanceof Armor ||
+                lootItem instanceof Helmet) {
             for (EntityObject item : soldier.getInventory().getEquipmentItems()) {
                 if (lootItem.getClass() == item.getClass()) {
                     return true;
@@ -476,16 +476,16 @@ public class AI {
     }
 
     private boolean isItemWorthSwapping(EntityObject lootItem) {
-        if (Helmet.class.isAssignableFrom(lootItem.getClass())) {
+        if (lootItem instanceof Helmet) {
             return lootItem.getRarity() < soldier.getInventory().getEquipmentItems().get(0).getRarity();
-        } else if (Armor.class.isAssignableFrom(lootItem.getClass())) {
+        } else if (lootItem instanceof Armor) {
             return lootItem.getRarity() < soldier.getInventory().getEquipmentItems().get(1).getRarity();
         }
         return false;
     }
 
     private boolean isItemWorthSwapping(EntityObject lootItem, EntityObject inventoryItem) {
-         if (Weapon.class.isAssignableFrom(lootItem.getClass()) && Weapon.class.isAssignableFrom(inventoryItem.getClass())) {
+         if (lootItem instanceof Weapon && inventoryItem instanceof Weapon) {
              return lootItem.getRarity() < inventoryItem.getRarity();
         }
         return false;
@@ -518,19 +518,19 @@ public class AI {
     private void checkAvailableWeapons() {
         ArrayList<EntityObject> items = soldier.getInventory().getItems();
         for (int i = 0; i < soldier.getInventory().getItems().size(); i++) {
-            if (SniperRifle.class.isAssignableFrom(items.get(i).getClass())) {
+            if (items.get(i) instanceof SniperRifle) {
                 selectedInventorySlot = i;
                 return;
             }
         }
         for (int i = 0; i < soldier.getInventory().getItems().size(); i++) {
-             if (AssaultRifle.class.isAssignableFrom(items.get(i).getClass())) {
+             if (items.get(i) instanceof AssaultRifle) {
                  selectedInventorySlot = i;
                  return;
             }
         }
         for (int i = 0; i < soldier.getInventory().getItems().size(); i++) {
-            if (Pistol.class.isAssignableFrom(items.get(i).getClass())) {
+            if (items.get(i) instanceof Pistol) {
                 selectedInventorySlot = i;
                 return;
             }
@@ -624,7 +624,7 @@ public class AI {
 
     private boolean hasWeapon(Soldier s) {
         for (EntityObject item : s.getInventory().getItems()) {
-            if (Weapon.class.isAssignableFrom(item.getClass())) {
+            if (item instanceof Weapon) {
                 return true;
             }
         }

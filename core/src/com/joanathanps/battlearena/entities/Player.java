@@ -109,7 +109,7 @@ public class Player extends Soldier {
 
                     EntityObject selectedItem = getInventory().getItem(getMatch().getHud().getSelectedSlot());
 
-                    if (Weapon.class.isAssignableFrom(selectedItem.getClass()) &&
+                    if (selectedItem instanceof Weapon &&
                             ((Weapon)selectedItem).getBullets() < ((Weapon)selectedItem).getMagCapacity()) {
                         getInventory().reloadSelectedWeapon();
                     }
@@ -133,7 +133,7 @@ public class Player extends Soldier {
                 getMatch().getState() == Match.GameState.TACTICAL)) {
             getInventory().useSelectedItem(this);
             EntityObject selectedItem = getInventory().getItem(getMatch().getHud().getSelectedSlot());
-            if (Weapon.class.isAssignableFrom(selectedItem.getClass()) &&
+            if (selectedItem instanceof Weapon &&
                     ((Weapon) selectedItem).getBullets() == 0 &&
                     !getInventory().isSelectedBeingUsed() && !actionsBlocked) {
                 getInventory().reloadSelectedWeapon();

@@ -21,7 +21,7 @@ public class PlayerInventory extends Inventory{
                 getMatch().getPlayer().blockActions();
                 getMatch().getProgress().setActivity("healing");
             }
-        } else if (Weapon.class.isAssignableFrom(selectedSlot.getClass())) {
+        } else if (selectedSlot instanceof Weapon) {
             ((Weapon)selectedSlot).shoot(soldier);
         } else if (selectedSlot.getClass() == Empty.class) {
             soldier.punch();
@@ -32,7 +32,7 @@ public class PlayerInventory extends Inventory{
     public void reloadSelectedWeapon() {
         Object selectedSlotClass = getItem(getMatch().getHud().getSelectedSlot());
 
-        if (Weapon.class.isAssignableFrom(selectedSlotClass.getClass())) {
+        if (selectedSlotClass instanceof Weapon) {
             setSelectedBeingUsed(true);
             getMatch().getProgress().setProgressSpeed(((Weapon)selectedSlotClass).getTimeToTransform());
             getMatch().getPlayer().slowDown();
@@ -54,7 +54,7 @@ public class PlayerInventory extends Inventory{
         int amountNeeded = ((Weapon)getItem(getMatch().getHud().getSelectedSlot())).getMagCapacity() - bulletsInWeapon;
         for (int i = 0; i < getItems().size(); i++) {
 
-            if (Ammo.class.isAssignableFrom(getItems().get(i).getClass()) && amountNeeded > 0 &&
+            if (getItems().get(i) instanceof Ammo && amountNeeded > 0 &&
                     ((Weapon)getItem(getMatch().getHud().getSelectedSlot())).getAmmoType() == getItems().get(i).getClass()) {
 
                 Ammo ammoBox = ((Ammo)getItems().get(i));
@@ -84,7 +84,7 @@ public class PlayerInventory extends Inventory{
 
     @Override
     public int getBulletsInMagazine() {
-        if (Weapon.class.isAssignableFrom(getItem(getMatch().getHud().getSelectedSlot()).getClass())) {
+        if (getItem(getMatch().getHud().getSelectedSlot()) instanceof Weapon) {
             return ((Weapon)getItem(getMatch().getHud().getSelectedSlot())).getBullets();
         } else {
             return -1;
@@ -93,10 +93,10 @@ public class PlayerInventory extends Inventory{
 
     @Override
     public int getBulletsInAmmoBoxes()  {
-        if (Weapon.class.isAssignableFrom(getItem(getMatch().getHud().getSelectedSlot()).getClass())) {
+        if (getItem(getMatch().getHud().getSelectedSlot()) instanceof Weapon) {
             int bullets = 0;
             for (EntityObject item : getItems()) {
-                if (Ammo.class.isAssignableFrom(item.getClass()) &&
+                if (item instanceof Ammo &&
                         ((Weapon)getItem(getMatch().getHud().getSelectedSlot())).getAmmoType() == item.getClass()) {
                     bullets += ((Ammo)item).getAmount();
                 }

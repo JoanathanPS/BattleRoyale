@@ -48,7 +48,7 @@ public abstract class Inventory {
 
     protected boolean hasAmmoForWeaponType(Weapon weapon) {
         for (EntityObject item : items) {
-            if (Ammo.class.isAssignableFrom(item.getClass()) && weapon.getAmmoType() == item.getClass()) {
+            if (item instanceof Ammo && weapon.getAmmoType() == item.getClass()) {
                 return true;
             }
         }

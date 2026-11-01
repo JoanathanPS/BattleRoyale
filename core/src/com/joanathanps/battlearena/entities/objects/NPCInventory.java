@@ -38,7 +38,7 @@ public class NPCInventory extends Inventory{
 
     @Override
     public int getBulletsInMagazine() {
-        if (Weapon.class.isAssignableFrom(getItem(((Enemy)getSoldier()).getAi().getSelectedInventorySlot()).getClass())) {
+        if (getItem(((Enemy)getSoldier()).getAi().getSelectedInventorySlot()) instanceof Weapon) {
             return ((Weapon)getItem(((Enemy)getSoldier()).getAi().getSelectedInventorySlot())).getBullets();
         } else {
             return -1;
