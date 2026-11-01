@@ -134,7 +134,7 @@ public class MainMenu implements Screen {
 
         Table table = new Table();
         table.left().top();
-        table.padTop(250);
+        table.padTop(240);
         table.setFillParent(true);
 
         TextButton playButton = new TextButton(i18n.getBundle().get("play"), skin, "white-button");
@@ -190,6 +190,7 @@ public class MainMenu implements Screen {
         difficultyGroup.setMinCheckCount(1);
         difficultyGroup.setMaxCheckCount(1);
         mediumButton.setChecked(true);
+        refreshDifficultyButtons(mediumButton);
 
         easyButton.addListener(new ChangeListener() {
             @Override
@@ -225,20 +226,20 @@ public class MainMenu implements Screen {
         float leftPad = pCenter(GAME_WIDTH) - pCenter(logo.getWidth()) + 20;
 
         table.add(playButton).padLeft(leftPad).align(Align.left);
-        table.row().padTop(6);
+        table.row().padTop(-8);
         table.add(leaderboardButton).padLeft(leftPad).align(Align.left);
-        table.row().padTop(6);
+        table.row().padTop(-8);
         table.add(optionsButton).padLeft(leftPad).align(Align.left);
-        table.row().padTop(12);
-        table.add(difficultyLabel).padLeft(leftPad + 10).align(Align.left);
         table.row().padTop(6);
+        table.add(difficultyLabel).padLeft(leftPad + 10).align(Align.left);
+        table.row().padTop(2);
 
         Table difficultyTable = new Table();
         difficultyTable.add(easyButton);
         difficultyTable.add(mediumButton).padLeft(8);
         difficultyTable.add(hardButton).padLeft(8);
         table.add(difficultyTable).padLeft(leftPad).align(Align.left);
-        table.row().padTop(10);
+        table.row().padTop(-4);
         table.add(exitButton).padLeft(leftPad).align(Align.left);
 
         stage.addActor(table);
