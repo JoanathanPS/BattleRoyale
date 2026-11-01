@@ -4,6 +4,7 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Rectangle;
@@ -77,6 +78,7 @@ public class HUD implements Disposable {
     private Texture armorBar;
     private Texture healthIcon;
     private Texture armorIcon;
+    private BitmapFont barFont;
     private Label healthPoints;
     private Label armorPoints;
     private Match match;
@@ -234,25 +236,7 @@ public class HUD implements Disposable {
         armorBar = match.getResources().getTexture(ResourceHandler.TexturePath.ARMOR_BAR);
         healthIcon = match.getResources().getTexture(ResourceHandler.TexturePath.HEALTH_ICON);
         armorIcon = match.getResources().getTexture(ResourceHandler.TexturePath.ARMOR_ICON);
-
-        Table table = new Table();
-        table.bottom();
-        table.setFillParent(true);
-
-        armorPoints = new Label("",
-                new Label.LabelStyle(
-                        FontGenerator.generate(ResourceHandler.FontPath.BOMBARD, 14, false), Color.WHITE
-                )
-        );
-        table.add(armorPoints).padBottom(3).padLeft(-350).row();
-        healthPoints = new Label("",
-                new Label.LabelStyle(
-                        FontGenerator.generate(ResourceHandler.FontPath.BOMBARD, 14, false), Color.WHITE
-                )
-        );
-        table.add(healthPoints).padBottom(15).padLeft(-350);
-
-        stage.addActor(table);
+        barFont = FontGenerator.generate(ResourceHandler.FontPath.BOMBARD, 14, false);
     }
 
     private void forgeInventory() {
@@ -482,32 +466,35 @@ public class HUD implements Disposable {
     }
 
     public void drawHealthBars(float delta, int health, int armor) {
+        float barX = pCenter(GAME_WIDTH) - pCenter(emptyBar.getWidth());
         match.getBatch().begin();
-        match.getBatch().draw(emptyBar, pCenter(GAME_WIDTH) - pCenter(emptyBar.getWidth()), 33);
-        match.getBatch().draw(emptyBar, pCenter(GAME_WIDTH) - pCenter(emptyBar.getWidth()), 15);
+        // Background bars
+        match.getBatch().draw(emptyBar, barX, 33);
+        match.getBatch().draw(emptyBar, barX, 15);
 
-        match.getBatch().draw(armorBar,
-                pCenter(GAME_WIDTH) - pCenter(emptyBar.getWidth()),
-                33,
-                armor * 4,
-                15);
-        match.getBatch().draw(healthbar,
-                pCenter(GAME_WIDTH) - pCenter(emptyBar.getWidth()),
-                15,
-                health * 4,
-                15);
+        // Filled bars
+        if (armor > 0) {
+            match.getBatch().draw(armorBar, barX, 33, Math.min(armor * 4, 400), 15);
+        }
+        if (health > 0) {
+            match.getBatch().draw(healthbar, barX, 15, Math.min(health * 4, 400), 15);
+        }
 
-        match.getBatch().draw(armorIcon,
-                pCenter(GAME_WIDTH) - pCenter(emptyBar.getWidth()) + 2, 35);
-        match.getBatch().draw(healthIcon,
-                pCenter(GAME_WIDTH) - pCenter(emptyBar.getWidth()) + 2, 17);
+        // Icons (centered vertically inside 15px high bars: 33+1.5=34.5->35, 15+1.5=16.5->17)
+        match.getBatch().draw(armorIcon, barX + 3, 35);
+        match.getBatch().draw(healthIcon, barX + 3, 17);
+
+        // Values drawn side-by-side with icons: X = barX + 18, Y baseline = 45 and 27
+        if (barFont != null) {
+            barFont.setColor(Color.WHITE);
+            barFont.draw(match.getBatch(), String.valueOf(armor), barX + 18, 45);
+            barFont.draw(match.getBatch(), String.valueOf(health), barX + 18, 27);
+        }
 
         match.getBatch().end();
     }
 
     public void updateHealthBars(float delta, int health, int armor) {
-        armorPoints.setText(String.valueOf(armor));
-        healthPoints.setText(String.valueOf(health));
     }
 
     public void drawStaminaBar(float delta, float stamina, float maxStamina) {
@@ -619,6 +606,7 @@ public class HUD implements Disposable {
     @Override
     public void dispose() {
         stage.dispose();
+        if (barFont != null) barFont.dispose();
         if (nearbyLootWidget != null) nearbyLootWidget.dispose();
         if (minimapZoneCircleTex != null) minimapZoneCircleTex.dispose();
         if (minimapArrowTex != null) minimapArrowTex.dispose();

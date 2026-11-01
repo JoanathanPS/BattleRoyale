@@ -38,14 +38,210 @@
     </style>
     <script src="battlearena/soundmanager2-jsmin.js"></script>
     <script src="battlearena/soundmanager2-setup.js"></script>
+    <script>
+      // Web Audio API Engine & Browser Audio Bridge
+      let audioCtx = null;
+      function getAudioContext() {
+        if (!audioCtx) {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          if (AudioContextClass) {
+            audioCtx = new AudioContextClass();
+          }
+        }
+        if (audioCtx && audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+        return audioCtx;
+      }
+
+      function unlockAudio() {
+        getAudioContext();
+        const c = document.querySelector('canvas');
+        if (c) c.focus();
+      }
+
+      window.addEventListener('click', unlockAudio);
+      window.addEventListener('mousedown', unlockAudio);
+      window.addEventListener('keydown', unlockAudio);
+      window.addEventListener('touchstart', unlockAudio);
+
+      // Preloaded HTML5 Audio elements for instant fallbacks
+      const soundElements = {};
+      const soundNames = ['shoot', 'sniper', 'shotgun', 'loot', 'hit', 'kill', 'click', 'zone', 'reload'];
+      soundNames.forEach(name => {
+        try {
+          const a = new Audio('assets/sounds/' + name + '.wav');
+          a.preload = 'auto';
+          soundElements[name] = a;
+        } catch (e) {}
+      });
+
+      window.playGameSound = function(name, volume) {
+        const vol = (volume !== undefined ? Math.max(0, Math.min(1, volume)) : 0.85);
+
+        // 1. Try playing preloaded HTML5 Audio
+        try {
+          const el = soundElements[name];
+          if (el) {
+            const clone = el.cloneNode();
+            clone.volume = vol;
+            const p = clone.play();
+            if (p && p.catch) p.catch(() => {});
+          }
+        } catch (ignored) {}
+
+        // 2. High-precision Web Audio Synthesizer
+        const ctx = getAudioContext();
+        if (!ctx) return;
+        const now = ctx.currentTime;
+
+        try {
+          if (name === 'shoot') {
+            const osc = ctx.createOscillator();
+            const g = ctx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(240, now);
+            osc.frequency.exponentialRampToValueAtTime(45, now + 0.18);
+            g.gain.setValueAtTime(0.85 * vol, now);
+            g.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+            osc.connect(g);
+            g.connect(ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.22);
+
+            const bufSize = Math.floor(ctx.sampleRate * 0.12);
+            const noiseBuf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+            const data = noiseBuf.getChannelData(0);
+            for (let i = 0; i < bufSize; i++) data[i] = Math.random() * 2 - 1;
+            const noise = ctx.createBufferSource();
+            noise.buffer = noiseBuf;
+            const filter = ctx.createBiquadFilter();
+            filter.type = 'bandpass';
+            filter.frequency.value = 1200;
+            const ng = ctx.createGain();
+            ng.gain.setValueAtTime(0.9 * vol, now);
+            ng.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+            noise.connect(filter);
+            filter.connect(ng);
+            ng.connect(ctx.destination);
+            noise.start(now);
+            noise.stop(now + 0.14);
+          } else if (name === 'sniper') {
+            const osc = ctx.createOscillator();
+            const g = ctx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(150, now);
+            osc.frequency.exponentialRampToValueAtTime(32, now + 0.38);
+            g.gain.setValueAtTime(1.0 * vol, now);
+            g.gain.exponentialRampToValueAtTime(0.001, now + 0.42);
+            osc.connect(g);
+            g.connect(ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.42);
+          } else if (name === 'shotgun') {
+            const osc = ctx.createOscillator();
+            const g = ctx.createGain();
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(160, now);
+            osc.frequency.exponentialRampToValueAtTime(40, now + 0.25);
+            g.gain.setValueAtTime(0.9 * vol, now);
+            g.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+            osc.connect(g);
+            g.connect(ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.28);
+          } else if (name === 'loot') {
+            const osc1 = ctx.createOscillator();
+            const g1 = ctx.createGain();
+            osc1.type = 'sine';
+            osc1.frequency.setValueAtTime(880, now);
+            g1.gain.setValueAtTime(0.45 * vol, now);
+            g1.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+            osc1.connect(g1);
+            g1.connect(ctx.destination);
+            osc1.start(now);
+            osc1.stop(now + 0.09);
+
+            const osc2 = ctx.createOscillator();
+            const g2 = ctx.createGain();
+            osc2.type = 'sine';
+            osc2.frequency.setValueAtTime(1318, now + 0.07);
+            g2.gain.setValueAtTime(0.55 * vol, now + 0.07);
+            g2.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+            osc2.connect(g2);
+            g2.connect(ctx.destination);
+            osc2.start(now + 0.07);
+            osc2.stop(now + 0.22);
+          } else if (name === 'hit') {
+            const osc = ctx.createOscillator();
+            const g = ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(130, now);
+            osc.frequency.exponentialRampToValueAtTime(45, now + 0.14);
+            g.gain.setValueAtTime(0.75 * vol, now);
+            g.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+            osc.connect(g);
+            g.connect(ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.14);
+          } else if (name === 'kill') {
+            [523, 659, 784].forEach((freq, idx) => {
+              const start = now + idx * 0.09;
+              const osc = ctx.createOscillator();
+              const g = ctx.createGain();
+              osc.type = 'sine';
+              osc.frequency.setValueAtTime(freq, start);
+              g.gain.setValueAtTime(0.5 * vol, start);
+              g.gain.exponentialRampToValueAtTime(0.001, start + 0.18);
+              osc.connect(g);
+              g.connect(ctx.destination);
+              osc.start(start);
+              osc.stop(start + 0.18);
+            });
+          } else if (name === 'click') {
+            const osc = ctx.createOscillator();
+            const g = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(1200, now);
+            g.gain.setValueAtTime(0.35 * vol, now);
+            g.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+            osc.connect(g);
+            g.connect(ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.04);
+          } else if (name === 'zone') {
+            const osc = ctx.createOscillator();
+            const g = ctx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(110, now);
+            g.gain.setValueAtTime(0.01 * vol, now);
+            g.gain.linearRampToValueAtTime(0.45 * vol, now + 0.25);
+            g.gain.exponentialRampToValueAtTime(0.001, now + 0.7);
+            osc.connect(g);
+            g.connect(ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.7);
+          } else if (name === 'reload') {
+            [0, 0.12].forEach((offset) => {
+              const osc = ctx.createOscillator();
+              const g = ctx.createGain();
+              osc.type = 'triangle';
+              osc.frequency.setValueAtTime(950, now + offset);
+              g.gain.setValueAtTime(0.35 * vol, now + offset);
+              g.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.07);
+              osc.connect(g);
+              g.connect(ctx.destination);
+              osc.start(now + offset);
+              osc.stop(now + offset + 0.07);
+            });
+          }
+        } catch (err) {
+          console.warn('Audio playback error:', err);
+        }
+      };
+    </script>
     <script src="battlearena/battlearena.nocache.js"></script>
 </head>
 <body id="embed-html">
-    <script>
-      window.addEventListener('click', () => {
-        const c = document.querySelector('canvas');
-        if (c) c.focus();
-      });
-    </script>
 </body>
 </html>

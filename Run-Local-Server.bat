@@ -35,3 +35,4 @@ echo Open https://battleroyale.joanathan.in to play online!
 pause
 
 :end
+

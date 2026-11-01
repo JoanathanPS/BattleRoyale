@@ -4,6 +4,7 @@ import com.badlogic.gdx.ApplicationListener;
 import com.badlogic.gdx.backends.gwt.GwtApplication;
 import com.badlogic.gdx.backends.gwt.GwtApplicationConfiguration;
 import com.joanathanps.battlearena.BattleRoyaleArenaLite;
+import com.joanathanps.battlearena.audio.AudioManager;
 import com.joanathanps.battlearena.scheme.PlayerSettings;
 
 public class HtmlLauncher extends GwtApplication {
@@ -17,6 +18,7 @@ public class HtmlLauncher extends GwtApplication {
 
     @Override
     public ApplicationListener createApplicationListener() {
+        AudioManager.setAudioBridge(new HtmlAudioBridge());
         return new BattleRoyaleArenaLite();
     }
 }

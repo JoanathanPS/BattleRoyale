@@ -21,6 +21,16 @@ t:fonts/bombard-36.fnt:11082:text/plain
 i:fonts/bombard-36.png:17829:image/png
 t:fonts/bombard-42.fnt:11082:text/plain
 i:fonts/bombard-42.png:22171:image/png
+d:sounds:0:application/unknown
+a:sounds/shoot.wav:24740:audio/wav
+a:sounds/sniper.wav:39734:audio/wav
+a:sounds/shotgun.wav:30912:audio/wav
+a:sounds/loot.wav:19448:audio/wav
+a:sounds/hit.wav:14156:audio/wav
+a:sounds/kill.wav:37088:audio/wav
+a:sounds/click.wav:3572:audio/wav
+a:sounds/zone.wav:66194:audio/wav
+a:sounds/reload.wav:24740:audio/wav
 d:localization:0:application/unknown
 b:localization/BattleRoyaleArenaLite.properties:867:application/unknown
 b:localization/BattleRoyaleArenaLite_pt_BR.properties:794:application/unknown

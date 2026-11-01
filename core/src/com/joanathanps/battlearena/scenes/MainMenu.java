@@ -14,6 +14,7 @@ import com.badlogic.gdx.utils.Timer;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
 import com.joanathanps.battlearena.BattleRoyaleArenaLite;
+import com.joanathanps.battlearena.audio.AudioManager;
 import com.joanathanps.battlearena.database.MatchResultsRepository;
 import com.joanathanps.battlearena.events.InputTracker;
 import com.joanathanps.battlearena.graphics.FontGenerator;
@@ -134,7 +135,7 @@ public class MainMenu implements Screen {
 
         Table table = new Table();
         table.left().top();
-        table.padTop(240);
+        table.padTop(210);
         table.setFillParent(true);
 
         TextButton playButton = new TextButton(i18n.getBundle().get("play"), skin, "white-button");
@@ -145,6 +146,7 @@ public class MainMenu implements Screen {
         playButton.addListener(new ClickListener(){
             @Override
             public void clicked(InputEvent event, float x, float y) {
+                AudioManager.playClick();
                 isLoading = true;
                 Timer.schedule(new Timer.Task(){
                     @Override
@@ -159,6 +161,7 @@ public class MainMenu implements Screen {
         exitButton.addListener(new ClickListener(){
             @Override
             public void clicked(InputEvent event, float x, float y) {
+                AudioManager.playClick();
                 Gdx.app.exit();
             }
         });
@@ -166,6 +169,7 @@ public class MainMenu implements Screen {
         leaderboardButton.addListener(new ClickListener(){
             @Override
             public void clicked(InputEvent event, float x, float y) {
+                AudioManager.playClick();
                 BattleRoyaleArenaLite game = (BattleRoyaleArenaLite)Gdx.app.getApplicationListener();
                 MatchResultsRepository repository = game.getMatchResultsRepository();
                 if (repository != null) {
@@ -177,6 +181,7 @@ public class MainMenu implements Screen {
         optionsButton.addListener(new ClickListener(){
             @Override
             public void clicked(InputEvent event, float x, float y) {
+                AudioManager.playClick();
                 BattleRoyaleArenaLite game = (BattleRoyaleArenaLite)Gdx.app.getApplicationListener();
                 game.setScreen(new SettingsScreen());
             }
@@ -196,6 +201,7 @@ public class MainMenu implements Screen {
             @Override
             public void changed(ChangeEvent event, com.badlogic.gdx.scenes.scene2d.Actor actor) {
                 if (easyButton.isChecked()) {
+                    AudioManager.playClick();
                     selectedDifficulty = Difficulty.EASY;
                     refreshDifficultyButtons(easyButton);
                 }
@@ -205,6 +211,7 @@ public class MainMenu implements Screen {
             @Override
             public void changed(ChangeEvent event, com.badlogic.gdx.scenes.scene2d.Actor actor) {
                 if (mediumButton.isChecked()) {
+                    AudioManager.playClick();
                     selectedDifficulty = Difficulty.MEDIUM;
                     refreshDifficultyButtons(mediumButton);
                 }
@@ -214,6 +221,7 @@ public class MainMenu implements Screen {
             @Override
             public void changed(ChangeEvent event, com.badlogic.gdx.scenes.scene2d.Actor actor) {
                 if (hardButton.isChecked()) {
+                    AudioManager.playClick();
                     selectedDifficulty = Difficulty.HARD;
                     refreshDifficultyButtons(hardButton);
                 }
@@ -289,7 +297,7 @@ public class MainMenu implements Screen {
                 pCenter(GAME_HEIGHT) - pCenter(backgroundP1.getHeight()) + InputTracker.getRelativeY() / 10);
         batch.draw(logo,
                 pCenter(GAME_WIDTH) - pCenter(logo.getWidth())  - InputTracker.getRelativeX() / 15,
-                GAME_HEIGHT - (GAME_HEIGHT / 3) + InputTracker.getRelativeY() / 15
+                GAME_HEIGHT - (GAME_HEIGHT / 3) + 30 + InputTracker.getRelativeY() / 15
         );
         batch.draw(backgroundP2,
                 pCenter(GAME_WIDTH) - pCenter(backgroundP2.getWidth() / 2) - InputTracker.getRelativeX() / 30,

@@ -1,6 +1,7 @@
 package com.joanathanps.battlearena.events;
 
 import com.badlogic.gdx.physics.box2d.*;
+import com.joanathanps.battlearena.audio.AudioManager;
 import com.joanathanps.battlearena.entities.Enemy;
 import com.joanathanps.battlearena.entities.projectiles.Bullet;
 import com.joanathanps.battlearena.entities.tiles.InteractiveTile;
@@ -68,12 +69,14 @@ public class WorldContactListener implements ContactListener {
                         if (((Bullet) fixtureB.getUserData()).getWeapon().getLastSoldierToShoot() != fixtureA.getUserData()) {
                             ((Enemy) fixtureA.getUserData()).getShot((Bullet)fixtureB.getUserData());
                             ((Bullet) fixtureB.getUserData()).destroy();
+                            AudioManager.playHit();
                         }
                     }
                 } else if (!((Enemy) fixtureB.getUserData()).isDead() && !((Bullet) fixtureA.getUserData()).isDestroyed()) {
                     if (((Bullet) fixtureA.getUserData()).getWeapon().getLastSoldierToShoot() != fixtureB.getUserData()) {
                         ((Enemy) fixtureB.getUserData()).getShot((Bullet)fixtureA.getUserData());
                         ((Bullet) fixtureA.getUserData()).destroy();
+                        AudioManager.playHit();
                     }
                 }
                 break;
@@ -83,12 +86,14 @@ public class WorldContactListener implements ContactListener {
                         if (((Bullet) fixtureB.getUserData()).getWeapon().getLastSoldierToShoot() != match.getPlayer()) {
                             match.getPlayer().getShot((Bullet)fixtureB.getUserData());
                             ((Bullet) fixtureB.getUserData()).destroy();
+                            AudioManager.playHit();
                         }
                     }
                 } else if (!match.getPlayer().isDead() && !((Bullet) fixtureA.getUserData()).isDestroyed()) {
                     if (((Bullet) fixtureA.getUserData()).getWeapon().getLastSoldierToShoot() != match.getPlayer()) {
                         match.getPlayer().getShot((Bullet)fixtureA.getUserData());
                         ((Bullet) fixtureA.getUserData()).destroy();
+                        AudioManager.playHit();
                     }
                 }
                 break;

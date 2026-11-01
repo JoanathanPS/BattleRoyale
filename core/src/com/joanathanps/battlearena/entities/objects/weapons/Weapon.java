@@ -1,6 +1,7 @@
 package com.joanathanps.battlearena.entities.objects.weapons;
 
 import com.badlogic.gdx.utils.Timer;
+import com.joanathanps.battlearena.audio.AudioManager;
 import com.joanathanps.battlearena.entities.Soldier;
 import com.joanathanps.battlearena.entities.objects.EntityObject;
 import com.joanathanps.battlearena.entities.projectiles.Bullet;
@@ -42,6 +43,9 @@ public abstract class Weapon extends EntityObject {
                 bulletTimeCount = 0;
                 isblocked = true;
                 soldier.setFiring(true);
+                boolean isPlayer = (getMatch().getPlayer() != null && soldier == getMatch().getPlayer());
+                com.badlogic.gdx.math.Vector2 pPos = getMatch().getPlayer() != null ? getMatch().getPlayer().getBody().getPosition() : null;
+                AudioManager.playShoot(this, isPlayer, soldier.getBody().getPosition(), pPos);
                 if (getMatch().getHud() != null) {
                     getMatch().getHud().recordGunshot(soldier.getBody().getPosition());
                 }

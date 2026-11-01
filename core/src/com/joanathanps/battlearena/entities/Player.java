@@ -4,6 +4,7 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
+import com.joanathanps.battlearena.audio.AudioManager;
 import com.joanathanps.battlearena.entities.objects.EntityObject;
 import com.joanathanps.battlearena.entities.objects.PlayerInventory;
 import com.joanathanps.battlearena.entities.objects.weapons.Weapon;
@@ -183,6 +184,7 @@ public class Player extends Soldier {
     private void checkKillCount(float delta) {
         if (getMatch().getHud().getKills() != getKills()) {
             getMatch().getHud().notifyKill(getKills());
+            AudioManager.playKill();
         }
     }
 }

@@ -11,6 +11,7 @@ import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.Disposable;
+import com.joanathanps.battlearena.audio.AudioManager;
 import com.joanathanps.battlearena.entities.Enemy;
 import com.joanathanps.battlearena.entities.objects.Empty;
 import com.joanathanps.battlearena.entities.objects.EntityObject;
@@ -175,6 +176,7 @@ public class NearbyLootWidget implements Disposable {
             EntityObject item = nearbyItems.get(selectedIndex);
             ArrayList<EntityObject> container = parentContainers.get(selectedIndex);
             LootPickup.collectSingle(match.getPlayer().getInventory(), item, container);
+            AudioManager.playLoot();
         }
     }
 

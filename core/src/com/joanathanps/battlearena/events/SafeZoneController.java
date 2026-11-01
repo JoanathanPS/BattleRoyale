@@ -4,6 +4,7 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.scenes.scene2d.ui.Image;
+import com.joanathanps.battlearena.audio.AudioManager;
 import com.joanathanps.battlearena.entities.Enemy;
 import com.joanathanps.battlearena.entities.Player;
 import com.joanathanps.battlearena.entities.Soldier;
@@ -104,6 +105,9 @@ public class SafeZoneController {
                 match.getHud().updateEventLabel(zoneLabel, isInZoneEvent());
                 secondsToNextEvent = secondsPerShrink;
                 match.getHud().updateTimeLabel(PhysicsAdapter.formatSeconds(secondsToNextEvent, false));
+                if (isInZoneEvent()) {
+                    AudioManager.playZoneWarning();
+                }
             }
 
             if (zoneTimeCount >= 1) {

@@ -3,6 +3,7 @@ package com.joanathanps.battlearena;
 import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.joanathanps.battlearena.audio.AudioManager;
 import com.joanathanps.battlearena.database.MatchResultsRepository;
 import com.joanathanps.battlearena.database.SupabaseMatchResultsRepository;
 import com.joanathanps.battlearena.scenes.MainMenu;
@@ -16,6 +17,7 @@ public class BattleRoyaleArenaLite extends Game {
     @Override
     public void create () {
         batch = new SpriteBatch();
+        AudioManager.init();
         matchResultsRepository = new SupabaseMatchResultsRepository();
         PlayerSettings.Resolution res = PlayerSettings.getResolution();
         if (PlayerSettings.getFullscreen()) {
@@ -34,6 +36,7 @@ public class BattleRoyaleArenaLite extends Game {
     @Override
     public void dispose () {
         batch.dispose();
+        AudioManager.dispose();
     }
 
     public MatchResultsRepository getMatchResultsRepository() {
