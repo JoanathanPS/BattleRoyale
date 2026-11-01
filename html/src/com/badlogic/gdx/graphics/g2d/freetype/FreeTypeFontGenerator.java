@@ -1,5 +1,6 @@
 package com.badlogic.gdx.graphics.g2d.freetype;
 
+import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.files.FileHandle;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Texture;
@@ -19,15 +20,44 @@ public class FreeTypeFontGenerator implements Disposable {
         public Texture.TextureFilter magFilter;
     }
 
+    private FileHandle file;
+
     public FreeTypeFontGenerator(FileHandle file) {
+        this.file = file;
     }
 
     public BitmapFont generateFont(FreeTypeFontParameter parameter) {
-        BitmapFont font = new BitmapFont();
-        if (parameter != null && parameter.size > 0) {
-            font.getData().setScale(Math.max(0.6f, (float) parameter.size / 16f));
+        int reqSize = (parameter != null && parameter.size > 0) ? parameter.size : 16;
+
+        int[] availableSizes = { 12, 14, 16, 18, 20, 22, 26, 28, 36, 42 };
+        int bestSize = 16;
+        int minDiff = Integer.MAX_VALUE;
+        for (int s : availableSizes) {
+            int diff = Math.abs(s - reqSize);
+            if (diff < minDiff) {
+                minDiff = diff;
+                bestSize = s;
+            }
         }
-        return font;
+
+        String fntPath = "fonts/bombard-" + bestSize + ".fnt";
+        FileHandle fh = Gdx.files.internal(fntPath);
+        if (fh != null && fh.exists()) {
+            BitmapFont font = new BitmapFont(fh);
+            if (bestSize != reqSize) {
+                float scale = (float) reqSize / (float) bestSize;
+                font.getData().setScale(scale);
+            }
+            if (parameter != null && parameter.minFilter != null && parameter.magFilter != null) {
+                font.getRegion().getTexture().setFilter(parameter.minFilter, parameter.magFilter);
+            }
+            return font;
+        }
+
+        // Fallback to internal font
+        BitmapFont fallback = new BitmapFont();
+        fallback.getData().setScale((float) reqSize / 15f);
+        return fallback;
     }
 
     @Override

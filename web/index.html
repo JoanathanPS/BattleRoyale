@@ -608,6 +608,10 @@
 
     // Launch Native HTML5 WebGL Game
     function launchGameInBrowser() {
+      if (window.location.protocol === "file:") {
+        alert("Modern browsers block WebGL asset loading (XHR) when opening HTML files directly as file:///.\n\nPlease double-click 'Run-Local-Server.bat' to test locally, or play online at https://battleroyale.joanathan.in");
+      }
+
       const splash = document.getElementById("launcher-splash");
       const frame = document.getElementById("game-frame");
       const fsBtn = document.getElementById("fullscreen-btn");
@@ -664,6 +668,16 @@
 
     // Initial load: fetch Supabase leaderboard and set auto-refresh
     document.addEventListener("DOMContentLoaded", () => {
+      // Check if running from file:// protocol
+      if (window.location.protocol === "file:") {
+        const fileWarning = document.createElement("div");
+        fileWarning.className = "bg-amber-500 text-black px-4 py-2.5 font-semibold text-center text-xs sm:text-sm shadow-xl z-50 sticky top-0 flex items-center justify-center gap-2";
+        fileWarning.innerHTML = `
+          <span>⚠️ <strong>Local File Notice:</strong> Browsers block WebGL game assets over <code>file:///</code>. To test locally, double-click <span class="bg-black/20 px-1.5 py-0.5 rounded font-mono font-bold">Run-Local-Server.bat</span>, or play live on <a href="https://battleroyale.joanathan.in" target="_blank" class="underline font-black hover:text-white">battleroyale.joanathan.in</a>.</span>
+        `;
+        document.body.prepend(fileWarning);
+      }
+
       fetchLeaderboard();
       setInterval(fetchLeaderboard, 30000);
     });

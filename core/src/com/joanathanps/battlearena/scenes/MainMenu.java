@@ -133,7 +133,8 @@ public class MainMenu implements Screen {
         Gdx.input.setInputProcessor(stage);
 
         Table table = new Table();
-        table.left();
+        table.left().top();
+        table.padTop(250);
         table.setFillParent(true);
 
         TextButton playButton = new TextButton(i18n.getBundle().get("play"), skin, "white-button");
@@ -221,22 +222,24 @@ public class MainMenu implements Screen {
         Label difficultyLabel = new Label("DIFFICULTY",
                 new Label.LabelStyle(FontGenerator.generate(ResourceHandler.FontPath.BOMBARD, 18, false), Color.WHITE));
 
-        table.add(playButton).padLeft(pCenter(GAME_WIDTH) - pCenter(logo.getWidth()) + 20).align(Align.left).padTop(100);
-        table.row();
-        table.add(leaderboardButton).padLeft(pCenter(GAME_WIDTH) - pCenter(logo.getWidth()) + 20).align(Align.left).padTop(-20);
-        table.row();
-        table.add(optionsButton).padLeft(pCenter(GAME_WIDTH) - pCenter(logo.getWidth()) + 20).align(Align.left).padTop(-20);
-        table.row();
-        table.add(difficultyLabel).padLeft(pCenter(GAME_WIDTH) - pCenter(logo.getWidth()) + 30).align(Align.left).padTop(-20);
-        table.row();
+        float leftPad = pCenter(GAME_WIDTH) - pCenter(logo.getWidth()) + 20;
+
+        table.add(playButton).padLeft(leftPad).align(Align.left);
+        table.row().padTop(6);
+        table.add(leaderboardButton).padLeft(leftPad).align(Align.left);
+        table.row().padTop(6);
+        table.add(optionsButton).padLeft(leftPad).align(Align.left);
+        table.row().padTop(12);
+        table.add(difficultyLabel).padLeft(leftPad + 10).align(Align.left);
+        table.row().padTop(6);
 
         Table difficultyTable = new Table();
         difficultyTable.add(easyButton);
         difficultyTable.add(mediumButton).padLeft(8);
         difficultyTable.add(hardButton).padLeft(8);
-        table.add(difficultyTable).padLeft(pCenter(GAME_WIDTH) - pCenter(logo.getWidth()) + 20).align(Align.left).padTop(-20);
-        table.row();
-        table.add(exitButton).padLeft(pCenter(GAME_WIDTH) - pCenter(logo.getWidth()) + 20).align(Align.left).padTop(-20);
+        table.add(difficultyTable).padLeft(leftPad).align(Align.left);
+        table.row().padTop(10);
+        table.add(exitButton).padLeft(leftPad).align(Align.left);
 
         stage.addActor(table);
     }
