@@ -1,697 +1,311 @@
-<!DOCTYPE html>
-<html lang="en" class="scroll-smooth">
-
+<!doctype html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Battle Royale Arena — Play Online & Download</title>
-  <meta name="description"
-    content="Battle Royale Arena: 2D top-down survival combat, AI tactical bots, shrinking safe zones, and live global leaderboards. Play directly in your browser with WebGL or download the desktop JAR." />
-  <link rel="canonical" href="https://battleroyale.joanathan.in/" />
-
-  <!-- Favicon -->
-  <link rel="icon"
-    href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚔️</text></svg>">
-
-  <!-- Open Graph -->
-  <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://battleroyale.joanathan.in/" />
-  <meta property="og:title" content="Battle Royale Arena — Play Online & Download" />
-  <meta property="og:description"
-    content="2D top-down survival combat engine with bots, loot mechanics, and shrinking combat zones. Play in browser or download desktop JAR." />
-
-  <!-- Google Fonts & Tailwind CDN -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link
-    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap"
-    rel="stylesheet">
-  <script src="https://cdn.tailwindcss.com"></script>
-
-  <style>
-    body {
-      font-family: 'Plus Jakarta Sans', sans-serif;
-      background-color: #07090e;
-    }
-
-    code,
-    pre,
-    .font-mono {
-      font-family: 'JetBrains Mono', monospace;
-    }
-
-    .glow-radial {
-      background: radial-gradient(circle at 50% 0%, rgba(16, 185, 129, 0.15) 0%, rgba(6, 78, 59, 0.05) 50%, transparent 80%);
-    }
-
-    .custom-scrollbar::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
-    }
-
-    .custom-scrollbar::-webkit-scrollbar-track {
-      background: #11141d;
-    }
-
-    .custom-scrollbar::-webkit-scrollbar-thumb {
-      background: #272f42;
-      border-radius: 3px;
-    }
-
-    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-      background: #10b981;
-    }
-  </style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Battle Royale Lite: play in your browser</title>
+  <meta name="description" content="Top-down battle royale against 5, 12 or 20 bots. The safe zone shrinks four times. Play in your browser or download the Java build.">
+  <meta name="theme-color" content="#13ae93">
+  <link rel="canonical" href="https://battleroyale.joanathan.in/">
+  <link rel="icon" type="image/png" href="assets/textures/gui/icons/game-icon.png">
+  <link rel="preload" href="fonts/barlow-condensed-latin-800-italic.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="assets/textures/gui/maps/minimap.png" as="image" fetchpriority="high">
+  <link rel="stylesheet" href="css/site.css">
+  <script src="js/zone.js" defer></script>
+  <script src="js/stage.js" defer></script>
+  <script src="js/leaderboard.js" defer></script>
+  <script src="js/controls.js" defer></script>
+  <script src="js/copy.js" defer></script>
 </head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
 
-<body class="text-zinc-100 min-h-screen flex flex-col selection:bg-emerald-500 selection:text-black">
-
-  <!-- Local file:// protocol notice -->
-  <div id="file-protocol-warning" class="hidden bg-amber-500/10 border-b border-amber-500/30 text-amber-300 px-4 py-2.5 text-center text-xs sm:text-sm font-medium z-50">
-    ⚠️ <span class="font-bold">Direct file:// access detected.</span> Browsers block WebGL game assets over the <code class="bg-amber-950/60 px-1.5 py-0.5 rounded text-amber-200">file://</code> protocol. Please double-click <strong class="text-white">Run-Local-Server.bat</strong> to play locally, or visit <a href="https://battleroyale.joanathan.in" class="underline text-white font-bold hover:text-emerald-400">battleroyale.joanathan.in</a>.
-  </div>
-  <script>
-    if (window.location.protocol === 'file:') {
-      document.getElementById('file-protocol-warning').classList.remove('hidden');
-    }
-  </script>
-
-  <!-- Ambient Glow Background -->
-  <div class="fixed inset-0 pointer-events-none glow-radial -z-10"></div>
-  <div class="fixed top-1/4 -right-48 w-96 h-96 bg-emerald-600/5 blur-[140px] rounded-full pointer-events-none -z-10">
-  </div>
-  <div class="fixed bottom-10 -left-48 w-96 h-96 bg-teal-600/5 blur-[140px] rounded-full pointer-events-none -z-10">
+  <div id="file-notice" class="notice" role="status" hidden>
+    This page was opened from a file. Browsers block the game from loading that way. Run <strong>Run-Local-Server.bat</strong> in this folder, or play at <a href="https://battleroyale.joanathan.in">battleroyale.joanathan.in</a>.
   </div>
 
-  <!-- Navbar -->
-  <header class="sticky top-0 z-40 w-full backdrop-blur-xl bg-[#07090e]/80 border-b border-zinc-800/80">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-      <a href="#" class="flex items-center gap-3 group">
-        <div
-          class="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center font-black text-black text-lg shadow-lg shadow-emerald-500/20 group-hover:scale-105 transition-transform duration-200">
-          B
-        </div>
-        <div>
-          <span class="font-extrabold tracking-tight text-white text-base block leading-none">Battle Royale Arena</span>
-          <span class="text-[11px] text-zinc-400 font-mono">battleroyale.joanathan.in</span>
-        </div>
-      </a>
-
-      <nav class="hidden md:flex items-center gap-6 text-sm font-medium text-zinc-300">
-        <a href="#play" class="hover:text-emerald-400 transition-colors">Play Online</a>
-        <a href="#leaderboard" class="hover:text-emerald-400 transition-colors">Leaderboard</a>
-        <a href="#download" class="hover:text-emerald-400 transition-colors">Download JAR</a>
-        <a href="#controls" class="hover:text-emerald-400 transition-colors">Field Manual</a>
+  <header class="bar" id="top" data-zone="0">
+    <div class="wrap bar__in">
+      <a class="brand" href="#drop"><img src="assets/textures/gui/logos/menu-logo.png" width="643" height="120" alt="Battle Royale Lite"></a>
+      <nav aria-label="Sections">
+        <a href="#play">Play</a>
+        <a href="#loadout">Loadout</a>
+        <a href="#results">Results</a>
+        <a href="#download">Download</a>
       </nav>
-
-      <div class="flex items-center gap-3">
-        <a href="https://github.com/JoanathanPS/BattleRoyale" target="_blank" rel="noopener noreferrer"
-          class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-zinc-900 border border-zinc-800 text-xs font-semibold text-zinc-300 hover:text-white hover:border-zinc-700 transition">
-          <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
-            <path
-              d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
-          </svg>
-          <span class="hidden sm:inline">GitHub</span>
-        </a>
-        <a href="./BattleRoyaleArena-1.0.jar" download="BattleRoyaleArena-1.0.jar"
-          class="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-emerald-500 hover:bg-emerald-400 text-zinc-950 text-xs font-bold transition shadow-md shadow-emerald-500/20">
-          Download Desktop JAR
-        </a>
+      <div class="hud" aria-hidden="true">
+        <div class="hud__map">
+          <img src="assets/textures/gui/maps/minimap.png" width="954" height="954" alt="">
+          <span class="hud__ring"></span>
+        </div>
+        <p class="hud__text"><span id="hud-zone">Drop</span><small id="hud-name">Island overview</small></p>
       </div>
     </div>
   </header>
 
-  <!-- Hero Section -->
-  <section class="max-w-5xl mx-auto px-4 sm:px-6 pt-10 pb-6 text-center">
-    <div
-      class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-xs font-semibold mb-4">
-      <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-      HTML5 WebGL + Desktop Release v1.0.0
-    </div>
-    <h1 class="text-4xl sm:text-6xl font-black tracking-tight text-white mb-4">
-      Survive The Shrinking Zone In <br />
-      <span class="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400">
-        Battle Royale Arena
-      </span>
-    </h1>
-    <p class="text-zinc-400 text-base sm:text-lg max-w-2xl mx-auto leading-relaxed mb-6">
-      A fast-paced 2D survival combat arena built in LibGDX. Scavenge high-tier weaponry, outmaneuver tactical bots, and
-      claim #1 victory directly in your browser.
-    </p>
+  <main id="main">
 
-    <!-- Quick Action Buttons -->
-    <div class="flex flex-wrap items-center justify-center gap-4">
-      <a href="#play" onclick="launchGameInBrowser()"
-        class="inline-flex items-center gap-2.5 px-7 py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-zinc-950 font-extrabold text-sm shadow-xl shadow-emerald-500/20 hover:scale-105 active:scale-95 transition-all duration-150 cursor-pointer">
-        <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24">
-          <path d="M8 5v14l11-7z" />
-        </svg>
-        <span>Play In Browser Now</span>
-      </a>
-      <a href="./BattleRoyaleArena-1.0.jar" download="BattleRoyaleArena-1.0.jar"
-        class="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700/80 text-white font-bold text-sm transition">
-        <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-        </svg>
-        <span>Download JAR (15.4 MB)</span>
-      </a>
-      <a href="./Launch-BattleRoyaleArena.bat" download="Launch-BattleRoyaleArena.bat"
-        class="inline-flex items-center gap-1.5 px-4 py-3.5 rounded-xl bg-zinc-950/80 hover:bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white text-xs font-semibold transition">
-        <span>Windows Launcher (.bat)</span>
-      </a>
-    </div>
-  </section>
-
-  <!-- Web Game Player Section -->
-  <section id="play" class="max-w-6xl mx-auto px-4 sm:px-6 py-6 w-full">
-    <div class="relative bg-zinc-950/90 border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl shadow-black/80">
-
-      <!-- Window Title Bar -->
-      <div class="bg-zinc-900/90 border-b border-zinc-800 px-4 py-3 flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <span class="w-3 h-3 rounded-full bg-red-500/80 inline-block"></span>
-          <span class="w-3 h-3 rounded-full bg-yellow-500/80 inline-block"></span>
-          <span class="w-3 h-3 rounded-full bg-emerald-500/80 inline-block"></span>
-          <span class="text-xs font-mono text-zinc-400 ml-2 font-medium">Battle Royale Arena &bull; HTML5 WebGL
-            (1280x720)</span>
-        </div>
-        <div class="flex items-center gap-3">
-          <a href="game.html" target="_blank" rel="noopener noreferrer"
-            class="text-xs text-zinc-400 hover:text-white transition flex items-center gap-1 px-2.5 py-1 rounded bg-zinc-800 hover:bg-zinc-700"
-            title="Open standalone game window">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
-            </svg>
-            <span class="hidden sm:inline">New Tab</span>
-          </a>
-          <button id="fullscreen-btn" onclick="toggleFullscreen()"
-            class="hidden text-xs text-zinc-400 hover:text-white transition flex items-center gap-1.5 px-2.5 py-1 rounded bg-zinc-800 hover:bg-zinc-700">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m4 0v4m0 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path>
-            </svg>
-            <span>Fullscreen</span>
-          </button>
-          <span id="player-status-badge"
-            class="text-[11px] font-mono px-2 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700/60">
-            WebGL Ready
-          </span>
-        </div>
-      </div>
-
-      <!-- Player Stage Container -->
-      <div id="game-stage"
-        class="relative w-full aspect-video min-h-[460px] bg-[#050608] flex items-center justify-center overflow-hidden">
-
-        <!-- Pre-Launch Splash State -->
-        <div id="launcher-splash"
-          class="absolute inset-0 flex flex-col items-center justify-center p-6 text-center z-10 bg-gradient-to-b from-zinc-950/80 to-zinc-950/95 backdrop-blur-sm">
-          <div
-            class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-emerald-500/20 to-teal-500/20 border border-emerald-500/30 flex items-center justify-center mb-4 shadow-xl shadow-emerald-500/10">
-            <svg class="w-8 h-8 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z">
-              </path>
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-            </svg>
-          </div>
-          <h2 class="text-2xl sm:text-3xl font-extrabold text-white mb-2">Play Battle Royale Arena</h2>
-          <p class="text-zinc-400 text-xs sm:text-sm max-w-lg mb-6 leading-relaxed">
-            Compiled natively to HTML5 WebGL. Runs at smooth 60 FPS directly in Chrome, Edge, Firefox, and Safari with
-            zero plugins required.
-          </p>
-
-          <div class="flex flex-wrap items-center justify-center gap-3">
-            <button id="start-game-btn" onclick="launchGameInBrowser()"
-              class="group inline-flex items-center gap-2.5 px-8 py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-zinc-950 text-sm font-bold shadow-xl shadow-emerald-500/25 hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer">
-              <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                <path d="M8 5v14l11-7z" />
-              </svg>
-              <span>Click to Start Game</span>
-            </button>
-            <a href="./BattleRoyaleArena-1.0.jar" download
-              class="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white text-xs font-semibold transition">
-              <span>Download Desktop JAR (15.4 MB)</span>
-            </a>
-          </div>
-
-          <div class="mt-6 flex flex-wrap items-center justify-center gap-4 text-xs text-zinc-500">
-            <span class="flex items-center gap-1.5">
-              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Native HTML5 WebGL
-            </span>
-            <span>&bull;</span>
-            <span class="flex items-center gap-1.5">
-              <span class="w-1.5 h-1.5 rounded-full bg-teal-500"></span> SoundManager2 Audio
-            </span>
-            <span>&bull;</span>
-            <span class="flex items-center gap-1.5">
-              <span class="w-1.5 h-1.5 rounded-full bg-cyan-500"></span> Supabase Cloud Sync
-            </span>
-          </div>
-        </div>
-
-        <!-- In-Browser Game Iframe Viewport -->
-        <iframe id="game-frame" src="about:blank" class="hidden w-full h-full border-0 bg-[#07090e]"
-          allow="autoplay; fullscreen; keyboard; gamepad" loading="eager"></iframe>
-      </div>
-
-      <!-- Player Bottom Bar -->
-      <div
-        class="bg-zinc-900/60 border-t border-zinc-800/80 px-4 py-3 flex flex-wrap items-center justify-between gap-3 text-xs text-zinc-400">
-        <div class="flex items-center gap-4">
-          <span class="inline-flex items-center gap-1.5">
-            <kbd
-              class="px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 font-mono text-[11px] border border-zinc-700">WASD</kbd>
-            Move
-          </span>
-          <span class="inline-flex items-center gap-1.5">
-            <kbd class="px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 font-mono text-[11px] border border-zinc-700">Left
-              Click</kbd> Shoot
-          </span>
-          <span class="inline-flex items-center gap-1.5">
-            <kbd
-              class="px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 font-mono text-[11px] border border-zinc-700">E</kbd>
-            Loot
-          </span>
-          <span class="inline-flex items-center gap-1.5 hidden sm:inline-flex">
-            <kbd class="px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 font-mono text-[11px] border border-zinc-700">1 -
-              6</kbd> Items
-          </span>
-        </div>
-        <div class="flex items-center gap-3">
-          <button id="reload-game-btn" onclick="reloadGame()"
-            class="hidden text-xs text-zinc-400 hover:text-white transition flex items-center gap-1">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
-              </path>
-            </svg>
-            <span>Restart</span>
-          </button>
-          <a href="#download" class="text-emerald-400 hover:text-emerald-300 font-medium">Prefer offline desktop JAR?
-            &rarr;</a>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Live Supabase Leaderboard Section -->
-  <section id="leaderboard" class="max-w-6xl mx-auto px-4 sm:px-6 py-12 w-full">
-    <div class="flex flex-col sm:flex-row sm:items-end justify-between mb-6 gap-4">
-      <div>
-        <div
-          class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold mb-2">
-          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
-          Live PostgREST Sync
-        </div>
-        <h2 class="text-2xl sm:text-3xl font-extrabold text-white">Global Arena Leaderboard</h2>
-        <p class="text-zinc-400 text-sm">Real-time match scores submitted to Supabase database by arena survivors.</p>
-      </div>
-
-      <div class="flex items-center gap-3">
-        <button onclick="fetchLeaderboard()"
-          class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-xs font-semibold text-zinc-300 hover:text-white transition">
-          <svg id="refresh-icon" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
-            </path>
-          </svg>
-          <span>Refresh</span>
-        </button>
-        <span id="last-updated-text" class="text-[11px] font-mono text-zinc-500">Syncing...</span>
-      </div>
-    </div>
-
-    <!-- Leaderboard Table Card -->
-    <div
-      class="bg-zinc-900/40 backdrop-blur-md border border-zinc-800/80 rounded-2xl overflow-hidden shadow-xl shadow-black/40">
-      <div class="overflow-x-auto custom-scrollbar">
-        <table class="w-full text-left text-xs sm:text-sm">
-          <thead
-            class="bg-zinc-950/70 border-b border-zinc-800/80 text-zinc-400 text-[11px] uppercase tracking-wider font-mono">
-            <tr>
-              <th class="py-3.5 px-4 sm:px-6">Rank</th>
-              <th class="py-3.5 px-4 sm:px-6">Survivor</th>
-              <th class="py-3.5 px-4 sm:px-6">Difficulty</th>
-              <th class="py-3.5 px-4 sm:px-6 text-right">Kills</th>
-              <th class="py-3.5 px-4 sm:px-6 text-right">Survival Time</th>
-              <th class="py-3.5 px-4 sm:px-6 text-right">Score</th>
-              <th class="py-3.5 px-4 sm:px-6 text-center">Result</th>
-            </tr>
-          </thead>
-          <tbody id="leaderboard-body" class="divide-y divide-zinc-800/50 font-medium">
-            <tr>
-              <td colspan="7" class="py-10 text-center text-zinc-500 font-mono text-xs">
-                <div
-                  class="inline-block w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mb-2">
-                </div>
-                <div>Fetching latest match results from Supabase...</div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </section>
-
-  <!-- Download Section -->
-  <section id="download" class="max-w-6xl mx-auto px-4 sm:px-6 py-12 w-full">
-    <div class="text-center max-w-2xl mx-auto mb-10">
-      <h2 class="text-2xl sm:text-3xl font-extrabold text-white mb-3">Download Release v1.0.0</h2>
-      <p class="text-zinc-400 text-sm">Experience maximum 144+ FPS desktop performance. Download the standalone
-        executable JAR and companion batch runner.</p>
-    </div>
-
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-      <!-- Primary JAR Download Card -->
-      <div
-        class="bg-zinc-900/50 border border-zinc-800 hover:border-emerald-500/50 rounded-2xl p-6 transition duration-200 flex flex-col justify-between shadow-xl shadow-black/40">
+    <!-- 1. Drop -->
+    <section id="drop" class="hero" aria-labelledby="h-drop">
+      <div class="wrap hero__grid">
         <div>
-          <div class="flex items-center justify-between mb-4">
-            <div
-              class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-              </svg>
-            </div>
-            <span class="text-xs font-mono px-2 py-0.5 rounded bg-zinc-800 text-zinc-400">15.4 MB &bull; Fat JAR</span>
+          <h1 id="h-drop">Last one on the island wins.</h1>
+          <p class="lede">A top-down battle royale against 5, 12 or 20 bots. Loot weapons, armor and medkits while the safe zone closes in. It runs in your browser.</p>
+          <div class="cta">
+            <a class="tag tag--go" href="#play" data-launch>Drop in</a>
+            <a class="tag" href="#download">Download for desktop</a>
           </div>
-          <h3 class="text-lg font-bold text-white mb-1">BattleRoyaleArena-1.0.jar</h3>
-          <p class="text-zinc-400 text-xs leading-relaxed mb-6">
-            Complete fat executable containing game engine, assets, Box2D physics, and LWJGL desktop bindings.
-          </p>
-          <div class="bg-black/40 border border-zinc-800/80 rounded-xl p-3 mb-6 font-mono text-xs text-zinc-300">
-            <span class="text-emerald-400 select-none">$ </span>java -jar BattleRoyaleArena-1.0.jar
+          <dl class="brief">
+            <div><dt>Opponents</dt><dd>5, 12 or 20 bots, by difficulty</dd></div>
+            <div><dt>Safe zone</dt><dd>Shrinks 4 times</dd></div>
+            <div><dt>Outside it</dt><dd>5 HP lost every second</dd></div>
+          </dl>
+        </div>
+        <figure class="island">
+          <div class="island__map">
+            <img src="assets/textures/gui/maps/minimap.png" width="954" height="954" alt="Top-down map of the island from the game, with a red ring marking a safe zone" fetchpriority="high">
+            <svg viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+              <defs><pattern id="zone-hatch" width="2.6" height="2.6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="2.6" height="2.6" fill="#c62b22" fill-opacity="0.1"/><rect width="0.8" height="2.6" fill="#c62b22" fill-opacity="0.55"/></pattern></defs>
+              <path fill="url(#zone-hatch)" fill-rule="evenodd" d="M0 0H100V100H0Z M20 50a30 30 0 1 0 60 0a30 30 0 1 0 -60 0Z"/>
+              <circle cx="50" cy="50" r="30" fill="none" stroke="#c62b22" stroke-width="0.9" stroke-dasharray="2.6 1.8"/>
+            </svg>
+          </div>
+          <figcaption>The game's own island map. Red is outside the safe zone.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- 2. Play -->
+    <section id="play" class="play on-dark" aria-labelledby="h-play">
+      <div class="wrap">
+        <div class="play__head">
+          <h2 id="h-play">Play</h2>
+          <p>Runs in the browser with a keyboard and mouse. Pick a difficulty in the game's menu, then press Play. Prefer a window of its own? <a href="game.html" target="_blank" rel="noopener">Open the game in a new tab</a>.</p>
+        </div>
+
+        <div class="stage" id="stage" data-state="idle">
+          <div class="stage__bar">
+            <p class="stage__status" id="stage-status" role="status">Ready</p>
+            <div class="stage__tools">
+              <button type="button" class="tool" id="btn-fs" disabled>Fullscreen</button>
+              <button type="button" class="tool" id="btn-restart" disabled>Restart</button>
+            </div>
+          </div>
+          <div class="stage__view" id="stage-view">
+            <img class="stage__poster" src="img/game-menu.jpg" width="1280" height="720" alt="The game's main menu with Play, Leaderboard, Settings, a difficulty choice and Quit" loading="lazy">
+            <iframe id="game-frame" title="Battle Royale Lite" allow="autoplay; fullscreen; gamepad" hidden></iframe>
+            <div class="stage__scrim" id="stage-scrim">
+              <div class="stage__card">
+                <p id="stage-note">Click to load the game. It uses your keyboard and mouse.</p>
+                <button type="button" class="tag tag--go" id="btn-launch">Drop in</button>
+                <a class="tag" id="stage-desktop" href="#download" hidden>Get the desktop build</a>
+              </div>
+            </div>
           </div>
         </div>
-        <a href="./BattleRoyaleArena-1.0.jar" download="BattleRoyaleArena-1.0.jar"
-          class="w-full inline-flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-sm shadow-lg shadow-emerald-500/20 transition cursor-pointer">
-          <svg class="w-4 h-4 fill-none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round"
-              d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-          </svg>
-          <span>Download JAR File (15.4 MB)</span>
-        </a>
+        <p class="stage__foot">Controls are listed under <a href="#loadout">Loadout</a>. Your finished matches show up under <a href="#results">Results</a>.</p>
       </div>
+    </section>
 
-      <!-- Windows Launcher Card -->
-      <div
-        class="bg-zinc-900/50 border border-zinc-800 hover:border-teal-500/50 rounded-2xl p-6 transition duration-200 flex flex-col justify-between shadow-xl shadow-black/40">
-        <div>
-          <div class="flex items-center justify-between mb-4">
-            <div
-              class="w-10 h-10 rounded-xl bg-teal-500/10 border border-teal-500/30 flex items-center justify-center text-teal-400">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-              </svg>
-            </div>
-            <span class="text-xs font-mono px-2 py-0.5 rounded bg-zinc-800 text-zinc-400">1 KB &bull; Windows
-              Script</span>
+    <!-- 3. Loadout -->
+    <section id="loadout" class="loadout" aria-labelledby="h-loadout">
+      <div class="wrap">
+        <div class="loadout__head">
+          <h2 id="h-loadout">Loadout</h2>
+          <p class="lede">Everything below is read from the game's code. Damage is per hit, and each weapon fires one bullet per shot.</p>
+        </div>
+
+        <div class="armory">
+          <div>
+            <h3>Pistols</h3>
+            <ul>
+              <li class="gun">
+                <img src="assets/textures/gui/items/weapons/g21.png" width="64" height="32" alt="" loading="lazy">
+                <span class="gun__name">G21</span>
+                <span class="gun__stats"><span>Damage <b>15</b></span><span>Every <b>0.6 s</b></span><span>Magazine <b>15</b></span></span>
+                <span class="bar-dmg" style="--w:11%" aria-hidden="true"></span>
+              </li>
+              <li class="gun">
+                <img src="assets/textures/gui/items/weapons/p26.png" width="64" height="32" alt="" loading="lazy">
+                <span class="gun__name">P26</span>
+                <span class="gun__stats"><span>Damage <b>18</b></span><span>Every <b>0.4 s</b></span><span>Magazine <b>17</b></span></span>
+                <span class="bar-dmg" style="--w:13%" aria-hidden="true"></span>
+              </li>
+            </ul>
           </div>
-          <h3 class="text-lg font-bold text-white mb-1">Launch-BattleRoyaleArena.bat</h3>
-          <p class="text-zinc-400 text-xs leading-relaxed mb-6">
-            Double-click helper script. Checks your Java installation, sets optimal heap allocation, and launches the
-            arena.
-          </p>
-          <div class="bg-black/40 border border-zinc-800/80 rounded-xl p-3 mb-6 font-mono text-xs text-zinc-300">
-            <span class="text-teal-400 select-none">&gt; </span>Launch-BattleRoyaleArena.bat
+          <div>
+            <h3>Assault rifles</h3>
+            <ul>
+              <li class="gun">
+                <img src="assets/textures/gui/items/weapons/w16a.png" width="64" height="32" alt="" loading="lazy">
+                <span class="gun__name">W16A</span>
+                <span class="gun__stats"><span>Damage <b>9</b></span><span>Every <b>0.2 s</b></span><span>Magazine <b>20</b></span></span>
+                <span class="bar-dmg" style="--w:7%" aria-hidden="true"></span>
+              </li>
+              <li class="gun">
+                <img src="assets/textures/gui/items/weapons/star.png" width="64" height="32" alt="" loading="lazy">
+                <span class="gun__name">STAR</span>
+                <span class="gun__stats"><span>Damage <b>8</b></span><span>Every <b>0.1 s</b></span><span>Magazine <b>20</b></span></span>
+                <span class="bar-dmg" style="--w:6%" aria-hidden="true"></span>
+              </li>
+            </ul>
+          </div>
+          <div class="armory__snipers">
+            <h3>Snipers</h3>
+            <ul>
+              <li class="gun">
+                <img src="assets/textures/gui/items/weapons/m20.png" width="64" height="32" alt="" loading="lazy">
+                <span class="gun__name">M20 <span class="gun__dmg" aria-label="105 damage">105</span></span>
+                <span class="gun__stats"><span>Every <b>3 s</b></span><span>Magazine <b>5</b></span></span>
+                <span class="bar-dmg" style="--w:78%" aria-hidden="true"></span>
+              </li>
+              <li class="gun">
+                <img src="assets/textures/gui/items/weapons/aw3.png" width="64" height="32" alt="" loading="lazy">
+                <span class="gun__name">AW3 <span class="gun__dmg" aria-label="135 damage">135</span></span>
+                <span class="gun__stats"><span>Every <b>5 s</b></span><span>Magazine <b>1</b></span></span>
+                <span class="bar-dmg" style="--w:100%" aria-hidden="true"></span>
+              </li>
+            </ul>
+            <p class="armory__note">An AW3 hit does 135 damage, more than the 100 health you start with. You wait 5 seconds for the next shot.</p>
           </div>
         </div>
-        <a href="./Launch-BattleRoyaleArena.bat" download="Launch-BattleRoyaleArena.bat"
-          class="w-full inline-flex items-center justify-center gap-2 py-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-sm border border-zinc-700 shadow-lg transition cursor-pointer">
-          <svg class="w-4 h-4 fill-none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round"
-              d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-          </svg>
-          <span>Download 1-Click .bat Runner</span>
-        </a>
-      </div>
 
-    </div>
-  </section>
+        <div class="gear">
+          <div>
+            <h3>Armor and healing</h3>
+            <p class="armory__note">While armor lasts, hits wear it down instead of your health.</p>
+          </div>
+          <ul>
+            <li><img src="assets/textures/gui/items/medkit.png" width="64" height="32" alt="" loading="lazy"><div><b>Medic Kit</b><span>Heals 50 health</span></div></li>
+            <li><img src="assets/textures/gui/items/equipment/soft-vest.png" width="64" height="32" alt="" loading="lazy"><div><b>Soft Vest</b><span>20 armor</span></div></li>
+            <li><img src="assets/textures/gui/items/equipment/military-vest.png" width="64" height="32" alt="" loading="lazy"><div><b>Military Vest</b><span>40 armor</span></div></li>
+            <li><img src="assets/textures/gui/items/equipment/half-helmet.png" width="64" height="32" alt="" loading="lazy"><div><b>Half Helmet</b><span>30 armor</span></div></li>
+            <li><img src="assets/textures/gui/items/equipment/combat-helmet.png" width="64" height="32" alt="" loading="lazy"><div><b>Combat Helmet</b><span>60 armor</span></div></li>
+          </ul>
+        </div>
 
-  <!-- Field Manual & Controls -->
-  <section id="controls" class="max-w-6xl mx-auto px-4 sm:px-6 py-12 w-full">
-    <div class="text-center max-w-2xl mx-auto mb-10">
-      <h2 class="text-2xl sm:text-3xl font-extrabold text-white mb-3">Field Manual & Keybinds</h2>
-      <p class="text-zinc-400 text-sm">Familiarize yourself with combat controls to survive the final circles.</p>
-    </div>
+        <div class="controls" id="controls">
+          <div class="controls__head">
+            <h3>Controls</h3>
+            <p>Press a key here to see it light up.</p>
+          </div>
+          <div class="keys">
+            <div>
+              <h4>Move</h4>
+              <div class="keyrow">
+                <div class="cap"><kbd data-code="KeyW">W</kbd></div>
+                <div class="cap"><kbd data-code="KeyA">A</kbd></div>
+                <div class="cap"><kbd data-code="KeyS">S</kbd></div>
+                <div class="cap"><kbd data-code="KeyD">D</kbd></div>
+              </div>
+              <div class="keyrow" style="margin-top:6px">
+                <div class="cap"><kbd class="wide" data-code="ShiftLeft ShiftRight">Shift</kbd>Sprint</div>
+              </div>
+            </div>
+            <div>
+              <h4>Act</h4>
+              <div class="keyrow">
+                <div class="cap"><kbd data-code="KeyE">E</kbd>Loot</div>
+                <div class="cap"><kbd data-code="KeyR">R</kbd>Reload</div>
+                <div class="cap"><kbd data-code="KeyM">M</kbd>Map</div>
+                <div class="cap"><kbd class="wide" data-code="Escape">Esc</kbd>Pause</div>
+              </div>
+            </div>
+            <div>
+              <h4>Items</h4>
+              <div class="keyrow">
+                <div class="cap"><kbd data-code="Digit1">1</kbd></div>
+                <div class="cap"><kbd data-code="Digit2">2</kbd></div>
+                <div class="cap"><kbd data-code="Digit3">3</kbd></div>
+                <div class="cap"><kbd data-code="Digit4">4</kbd></div>
+                <div class="cap"><kbd data-code="Digit5">5</kbd></div>
+                <div class="cap"><kbd data-code="Digit6">6</kbd></div>
+              </div>
+              <div class="keyrow" style="margin-top:6px">
+                <div class="cap"><kbd class="wide" data-wheel>Scroll</kbd>Cycle slots</div>
+              </div>
+            </div>
+            <div>
+              <h4>Mouse</h4>
+              <div class="keyrow">
+                <div class="cap"><kbd class="wide" data-mouse="0">Left click</kbd>Shoot</div>
+                <div class="cap"><kbd class="wide" data-pointer>Move</kbd>Aim</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
 
-    <!-- Keybind Grid -->
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-10">
-      <div class="bg-zinc-900/40 border border-zinc-800/80 rounded-xl p-4 text-center">
-        <kbd
-          class="px-3 py-1 rounded-md bg-zinc-800 text-emerald-400 font-bold font-mono text-sm border border-zinc-700 shadow-sm block w-fit mx-auto mb-2">WASD</kbd>
-        <div class="font-bold text-white text-xs">Movement</div>
-        <div class="text-[11px] text-zinc-500 mt-0.5">Tactical 8-way traversal</div>
-      </div>
+    <!-- 4. Results -->
+    <section id="results" class="results" aria-labelledby="h-results">
+      <div class="wrap">
+        <div class="results__head">
+          <h2 id="h-results">Results</h2>
+          <p>The ten highest scores, read live from the same table the game saves finished matches to.</p>
+        </div>
 
-      <div class="bg-zinc-900/40 border border-zinc-800/80 rounded-xl p-4 text-center">
-        <kbd
-          class="px-3 py-1 rounded-md bg-zinc-800 text-emerald-400 font-bold font-mono text-sm border border-zinc-700 shadow-sm block w-fit mx-auto mb-2">Mouse
-          Aim</kbd>
-        <div class="font-bold text-white text-xs">Target & Shoot</div>
-        <div class="text-[11px] text-zinc-500 mt-0.5">Left click to engage</div>
-      </div>
+        <div class="lb-tools">
+          <div class="seg" role="group" aria-label="Filter by difficulty">
+            <button type="button" data-diff="" aria-pressed="true">All</button>
+            <button type="button" data-diff="EASY" aria-pressed="false">Easy</button>
+            <button type="button" data-diff="MEDIUM" aria-pressed="false">Medium</button>
+            <button type="button" data-diff="HARD" aria-pressed="false">Hard</button>
+          </div>
+          <button type="button" class="tool" id="lb-refresh">Refresh</button>
+          <p class="lb-updated" id="lb-updated" role="status"></p>
+        </div>
 
-      <div class="bg-zinc-900/40 border border-zinc-800/80 rounded-xl p-4 text-center">
-        <kbd
-          class="px-3 py-1 rounded-md bg-zinc-800 text-emerald-400 font-bold font-mono text-sm border border-zinc-700 shadow-sm block w-fit mx-auto mb-2">E
-          Key</kbd>
-        <div class="font-bold text-white text-xs">Loot / Scavenge</div>
-        <div class="text-[11px] text-zinc-500 mt-0.5">Open crates & chests</div>
+        <div id="lb" aria-busy="true">
+          <div class="lb-state" id="lb-state" data-show><p id="lb-msg">Loading results...</p><button type="button" class="tool" id="lb-retry" hidden>Try again</button></div>
+          <table class="lb-table" id="lb-table" hidden>
+            <caption class="sr-only">Top matches by score</caption>
+            <thead>
+              <tr><th scope="col">#</th><th scope="col">Player</th><th scope="col">Mode</th><th scope="col" class="num">Kills</th><th scope="col" class="num">Survived</th><th scope="col" class="num">Score</th><th scope="col">Result</th></tr>
+            </thead>
+            <tbody id="lb-body"></tbody>
+          </table>
+        </div>
+        <p class="formula">Score is kills x 100, plus 500 for a win, plus 10 for every second survived.</p>
       </div>
+    </section>
 
-      <div class="bg-zinc-900/40 border border-zinc-800/80 rounded-xl p-4 text-center">
-        <kbd
-          class="px-3 py-1 rounded-md bg-zinc-800 text-emerald-400 font-bold font-mono text-sm border border-zinc-700 shadow-sm block w-fit mx-auto mb-2">1
-          - 6 / Scroll</kbd>
-        <div class="font-bold text-white text-xs">Inventory</div>
-        <div class="text-[11px] text-zinc-500 mt-0.5">Switch weapon & meds</div>
+    <!-- 5. Download -->
+    <section id="download" class="download" aria-labelledby="h-download">
+      <div class="wrap">
+        <h2 id="h-download">Download</h2>
+        <div class="download__grid">
+          <div class="dl">
+            <h3>Desktop build</h3>
+            <p>One Java file. Needs Java 8 or newer.</p>
+            <a class="tag tag--go" href="BattleRoyaleArena-1.0.jar" download>Download the JAR (15.4 MB)</a>
+            <dl>
+              <div><dt>Run it</dt>
+                <dd class="copyrow"><code id="run-cmd">java -jar BattleRoyaleArena-1.0.jar</code><button type="button" class="tool" data-copy="#run-cmd">Copy</button></dd></div>
+              <div><dt>SHA-256</dt>
+                <dd class="copyrow"><code id="sha">c6490da2b8d4ec9e5c30c40ad329847ff4547a1d0e8fcd7c0a36f1cfe908ccad</code><button type="button" class="tool" data-copy="#sha">Copy</button></dd></div>
+              <div><dt>Size</dt><dd>15,402,731 bytes</dd></div>
+            </dl>
+          </div>
+          <div class="dl dl--small">
+            <h3>Windows launcher</h3>
+            <p>Double-click it and it runs the JAR from the same folder. If Java is missing it tells you. Keep both files together.</p>
+            <a class="tag" href="Launch-BattleRoyaleArena.bat" download>Download the .bat</a>
+          </div>
+        </div>
       </div>
-    </div>
+    </section>
+  </main>
 
-    <!-- Arsenal & Mechanics Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-      <div class="bg-zinc-900/30 border border-zinc-800/70 rounded-2xl p-5">
-        <div class="text-xs font-mono text-emerald-400 font-semibold mb-1">01 &bull; WEAPONS ARSENAL</div>
-        <h4 class="text-base font-bold text-white mb-2">Firepower Tiers</h4>
-        <p class="text-xs text-zinc-400 leading-relaxed">
-          Equip Sniper Rifles for long-range takedowns, Assault Rifles for sustained firefights, or Pistols for agile
-          close-quarters defense.
-        </p>
-      </div>
-
-      <div class="bg-zinc-900/30 border border-zinc-800/70 rounded-2xl p-5">
-        <div class="text-xs font-mono text-teal-400 font-semibold mb-1">02 &bull; SURVIVAL GEAR</div>
-        <h4 class="text-base font-bold text-white mb-2">Armor & Health</h4>
-        <p class="text-xs text-zinc-400 leading-relaxed">
-          Level up Helmets and Body Armor to mitigate incoming damage. Scavenge first-aid medkits to patch wounds before
-          the next circle closes.
-        </p>
-      </div>
-
-      <div class="bg-zinc-900/30 border border-zinc-800/70 rounded-2xl p-5">
-        <div class="text-xs font-mono text-cyan-400 font-semibold mb-1">03 &bull; SAFE ZONE MECHANIC</div>
-        <h4 class="text-base font-bold text-white mb-2">Shrinking Combat Zone</h4>
-        <p class="text-xs text-zinc-400 leading-relaxed">
-          Keep track of the circular safe zone. Remaining outside deals compounding damage that pierces standard armor.
-        </p>
-      </div>
-    </div>
-  </section>
-
-  <!-- Footer -->
-  <footer class="mt-auto border-t border-zinc-900 bg-[#050609] py-8 text-center text-xs text-zinc-500">
-    <div class="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-      <div>
-        <p class="text-zinc-400 font-medium">Battle Royale Arena &copy; 2026 Joanathan</p>
-        <p class="text-[11px] text-zinc-600 mt-0.5">Hosted on Vercel at <a href="https://battleroyale.joanathan.in"
-            class="text-emerald-400 underline">battleroyale.joanathan.in</a></p>
-      </div>
-      <div class="flex items-center gap-4 text-xs">
-        <a href="https://github.com/JoanathanPS/BattleRoyale" target="_blank" rel="noopener noreferrer"
-          class="hover:text-zinc-300 transition">Source Code</a>
-        <span>&bull;</span>
-        <a href="https://github.com/JoanathanPS/BattleRoyale/releases" target="_blank" rel="noopener noreferrer"
-          class="hover:text-zinc-300 transition">All Releases</a>
-        <span>&bull;</span>
-        <a href="game.html" target="_blank" rel="noopener noreferrer" class="hover:text-emerald-400 transition">Direct
-          Game Link</a>
-      </div>
+  <footer class="foot">
+    <div class="wrap">
+      <p>MIT licensed. Original engine by Breno Sousa (brensio). Leaderboard and web build by JoanathanPS.</p>
+      <nav aria-label="Project links">
+        <a href="https://github.com/JoanathanPS/BattleRoyale" rel="noopener">Source code</a>
+        <a href="https://github.com/JoanathanPS/BattleRoyale/releases" rel="noopener">Releases</a>
+        <a href="game.html" target="_blank" rel="noopener">Game only</a>
+      </nav>
     </div>
   </footer>
-
-  <!-- App & Leaderboard JavaScript -->
-  <script>
-    // Supabase Configuration
-    const SUPABASE_URL = "https://ngssqooaxzaqobmowfrk.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5nc3Nxb29heHphcW9ibW93ZnJrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY5ODY1ODEsImV4cCI6MjEwMjU2MjU4MX0.d3uagDjBQoSL8pv5RGZRakv8uimHnNyEqXTsIGhpnyE";
-
-    let gameRunning = false;
-
-    // Fetch and populate live leaderboard
-    async function fetchLeaderboard() {
-      const tbody = document.getElementById("leaderboard-body");
-      const refreshIcon = document.getElementById("refresh-icon");
-      const lastUpdated = document.getElementById("last-updated-text");
-
-      if (refreshIcon) refreshIcon.classList.add("animate-spin");
-
-      try {
-        const response = await fetch(`${SUPABASE_URL}/rest/v1/match_results?select=*&order=score.desc&limit=10`, {
-          headers: {
-            "apikey": SUPABASE_KEY,
-            "Authorization": `Bearer ${SUPABASE_KEY}`
-          }
-        });
-
-        if (!response.ok) throw new Error("Failed to load match results");
-
-        const data = await response.json();
-
-        if (!data || data.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-zinc-500 font-mono text-xs">No match scores recorded yet. Be the first to win!</td></tr>`;
-          return;
-        }
-
-        tbody.innerHTML = data.map((item, index) => {
-          const rank = index + 1;
-          let rankBadge = `<span class="font-mono text-zinc-400 font-bold">#${rank}</span>`;
-          if (rank === 1) rankBadge = `<span class="w-6 h-6 rounded-full bg-yellow-500/20 text-yellow-400 border border-yellow-500/40 font-mono font-bold inline-flex items-center justify-center text-xs">1</span>`;
-          if (rank === 2) rankBadge = `<span class="w-6 h-6 rounded-full bg-slate-300/20 text-slate-300 border border-slate-300/40 font-mono font-bold inline-flex items-center justify-center text-xs">2</span>`;
-          if (rank === 3) rankBadge = `<span class="w-6 h-6 rounded-full bg-amber-700/20 text-amber-500 border border-amber-600/40 font-mono font-bold inline-flex items-center justify-center text-xs">3</span>`;
-
-          const minutes = Math.floor((item.survival_time_seconds || 0) / 60);
-          const seconds = (item.survival_time_seconds || 0) % 60;
-          const timeFormatted = `${minutes}m ${seconds.toString().padStart(2, '0')}s`;
-
-          let diffColor = "bg-zinc-800 text-zinc-400";
-          if (item.difficulty === "HARD") diffColor = "bg-rose-500/10 text-rose-400 border border-rose-500/20";
-          if (item.difficulty === "MEDIUM") diffColor = "bg-amber-500/10 text-amber-400 border border-amber-500/20";
-          if (item.difficulty === "EASY") diffColor = "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
-
-          const isWin = item.result === "WIN";
-          const resultBadge = isWin
-            ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">VICTORY</span>`
-            : `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-zinc-800 text-zinc-400">DEFEAT</span>`;
-
-          return `
-            <tr class="hover:bg-zinc-800/30 transition">
-              <td class="py-3 px-4 sm:px-6">${rankBadge}</td>
-              <td class="py-3 px-4 sm:px-6 font-bold text-white flex items-center gap-2">
-                <span class="w-2 h-2 rounded-full ${isWin ? 'bg-emerald-400' : 'bg-zinc-600'}"></span>
-                <span>${escapeHtml(item.player_name || 'Survivor')}</span>
-              </td>
-              <td class="py-3 px-4 sm:px-6">
-                <span class="px-2 py-0.5 rounded text-[11px] font-mono font-semibold ${diffColor}">${escapeHtml(item.difficulty || 'MEDIUM')}</span>
-              </td>
-              <td class="py-3 px-4 sm:px-6 text-right font-mono text-emerald-400 font-bold">${item.kills || 0}</td>
-              <td class="py-3 px-4 sm:px-6 text-right font-mono text-zinc-300">${timeFormatted}</td>
-              <td class="py-3 px-4 sm:px-6 text-right font-mono font-bold text-white">${(item.score || 0).toLocaleString()}</td>
-              <td class="py-3 px-4 sm:px-6 text-center">${resultBadge}</td>
-            </tr>
-          `;
-        }).join("");
-
-        if (lastUpdated) {
-          lastUpdated.textContent = `Updated ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-        }
-      } catch (err) {
-        console.warn("Leaderboard error:", err);
-        tbody.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-zinc-500 font-mono text-xs">Offline / Unable to fetch leaderboard. Refresh to try again.</td></tr>`;
-      } finally {
-        if (refreshIcon) refreshIcon.classList.remove("animate-spin");
-      }
-    }
-
-    function escapeHtml(text) {
-      const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
-      return String(text).replace(/[&<>"']/g, m => map[m]);
-    }
-
-    // Launch Native HTML5 WebGL Game
-    function launchGameInBrowser() {
-      if (window.location.protocol === "file:") {
-        alert("Modern browsers block WebGL asset loading (XHR) when opening HTML files directly as file:///.\n\nPlease double-click 'Run-Local-Server.bat' to test locally, or play online at https://battleroyale.joanathan.in");
-      }
-
-      const splash = document.getElementById("launcher-splash");
-      const frame = document.getElementById("game-frame");
-      const fsBtn = document.getElementById("fullscreen-btn");
-      const reloadBtn = document.getElementById("reload-game-btn");
-      const badge = document.getElementById("player-status-badge");
-
-      splash.classList.add("hidden");
-      frame.classList.remove("hidden");
-
-      if (!frame.src || frame.src.endsWith("about:blank")) {
-        frame.src = "game.html";
-      }
-
-      fsBtn.classList.remove("hidden");
-      reloadBtn.classList.remove("hidden");
-      badge.textContent = "WebGL Active";
-      badge.className = "text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/40";
-      gameRunning = true;
-      frame.focus();
-    }
-
-    function reloadGame() {
-      const frame = document.getElementById("game-frame");
-      frame.src = "about:blank";
-      setTimeout(() => {
-        frame.src = "game.html";
-        frame.focus();
-      }, 100);
-    }
-
-    function toggleFullscreen() {
-      const stage = document.getElementById("game-stage");
-      if (!document.fullscreenElement) {
-        if (stage.requestFullscreen) {
-          stage.requestFullscreen();
-        } else if (stage.webkitRequestFullscreen) {
-          stage.webkitRequestFullscreen();
-        }
-      } else {
-        if (document.exitFullscreen) {
-          document.exitFullscreen();
-        } else if (document.webkitExitFullscreen) {
-          document.webkitExitFullscreen();
-        }
-      }
-    }
-
-    // Trap arrow keys and spacebar when game is running so the browser page doesn't scroll
-    window.addEventListener("keydown", (e) => {
-      if (gameRunning && ["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.code)) {
-        e.preventDefault();
-      }
-    }, false);
-
-    // Initial load: fetch Supabase leaderboard and set auto-refresh
-    document.addEventListener("DOMContentLoaded", () => {
-      // Check if running from file:// protocol
-      if (window.location.protocol === "file:") {
-        const fileWarning = document.createElement("div");
-        fileWarning.className = "bg-amber-500 text-black px-4 py-2.5 font-semibold text-center text-xs sm:text-sm shadow-xl z-50 sticky top-0 flex items-center justify-center gap-2";
-        fileWarning.innerHTML = `
-          <span>⚠️ <strong>Local File Notice:</strong> Browsers block WebGL game assets over <code>file:///</code>. To test locally, double-click <span class="bg-black/20 px-1.5 py-0.5 rounded font-mono font-bold">Run-Local-Server.bat</span>, or play live on <a href="https://battleroyale.joanathan.in" target="_blank" class="underline font-black hover:text-white">battleroyale.joanathan.in</a>.</span>
-        `;
-        document.body.prepend(fileWarning);
-      }
-
-      fetchLeaderboard();
-      setInterval(fetchLeaderboard, 30000);
-    });
-  </script>
 </body>
-
 </html>

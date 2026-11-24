@@ -1,40 +1,31 @@
-# Battle Royale Arena Web Portal
+# Battle Royale Lite web portal
 
-Web platform for **Battle Royale Arena** deployed at [battleroyale.joanathan.in](https://battleroyale.joanathan.in).
+Static site for the game, deployed on Vercel at [battleroyale.joanathan.in](https://battleroyale.joanathan.in). No framework and no build step. Design notes and the reason for each choice are in [`/DESIGN.md`](../DESIGN.md).
 
-## Features
-- **In-Browser WebAssembly JVM**: Powered by CheerpJ 3.0 to load and run `BattleRoyaleArena-1.0.jar` directly inside client browsers.
-- **Live Supabase Leaderboard**: Real-time PostgREST sync with the game's Supabase match database (`https://ngssqooaxzaqobmowfrk.supabase.co`).
-- **1-Click Release Download Hub**: Direct download for the 15.4 MB executable JAR (`BattleRoyaleArena-1.0.jar`) and companion launcher (`Launch-BattleRoyaleArena.bat`).
-- **Interactive Guide & Field Manual**: Full controls, inventory switching, and safe zone shrinking mechanic guides.
+## What is here
+- `index.html`, `css/`, `js/`, `fonts/`, `img/`: the portal. Plain HTML, CSS and JavaScript. Fonts (Barlow, OFL) are self-hosted.
+- `game.html`, `battlearena/`, `assets/`: the compiled game (GWT/WebGL). The portal embeds `game.html` in an iframe. Do not edit these by hand.
+- `BattleRoyaleArena-1.0.jar`, `Launch-BattleRoyaleArena.bat`: the desktop build and its Windows launcher.
+- Live leaderboard: read from the Supabase `match_results` table with the public anon key (`js/leaderboard.js`).
 
-## Vercel Deployment Instructions
+## Run it locally
+Browsers block the game over `file://`. Serve this folder instead:
 
-### Option 1: Deploy with Vercel CLI
-From the project root:
 ```bash
-# Navigate to web directory
-cd web
-
-# Deploy to Vercel
-vercel
+python3 -m http.server 8000   # then open http://localhost:8000
 ```
 
-When prompted:
-- Set project name: `battleroyale`
-- In Vercel Project Settings &rarr; **Domains**, add: `battleroyale.joanathan.in`.
+On Windows, double-click `Run-Local-Server.bat`.
 
-### Option 2: Deploy via GitHub + Vercel Dashboard
-1. Push this repository to GitHub: `https://github.com/JoanathanPS/BattleRoyale`.
-2. In the [Vercel Dashboard](https://vercel.com/new), import the `BattleRoyale` repo.
-3. Under **Root Directory**, click "Edit" and choose:
-   ```
-   web
-   ```
-4. Click **Deploy**.
-5. Once deployed, go to **Settings &rarr; Domains** and add:
-   ```
-   battleroyale.joanathan.in
-   ```
-6. Add the CNAME DNS record in your DNS provider for `battleroyale` pointing to `cname.vercel-dns.com`.
+## When the JAR changes
+The download section shows the file size and SHA-256 of `BattleRoyaleArena-1.0.jar`. After rebuilding it, update both in `index.html`:
 
+```bash
+sha256sum BattleRoyaleArena-1.0.jar
+stat -c %s BattleRoyaleArena-1.0.jar
+```
+
+## Deploy to Vercel
+1. Import the repository at [vercel.com/new](https://vercel.com/new).
+2. Set **Root Directory** to `web`.
+3. Deploy, then add the domain `battleroyale.joanathan.in` under Settings, Domains, and point a CNAME for `battleroyale` at `cname.vercel-dns.com`.
