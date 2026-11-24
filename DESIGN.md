@@ -10,7 +10,7 @@ Design Read: game launch portal for people who want to try a browser game in one
 The shrinking safe-zone ring. The header minimap shrinks its ring one step per section (4 steps, like the game's 4 shrinks). The hero shows the island with the red outside-the-zone shading. Nothing else uses red.
 
 ## Decisions, one line each
-- **Name**: "Battle Royale Lite", the title on the game's own logo and menu. The wordmark is the game's real `menu-logo.png`, not a redrawn logo.
+- **Name and wordmark**: "Battle Royale Lite", the title on the game's own logo and menu. The header wordmark is live text (Barlow Condensed italic, ink on paper, "Lite" in a red block). The game's logo PNG is white-filled and disappears on a light page, so it is not used.
 - **Light theme**: the game is a bright flat daylight island (teal sea, lime land). A dark page would be a different product.
 - **Palette**: ocean `#13ae93` (read from `minimap.png`), land `#b9f27a`, ink `#10202a`, paper `#f7f4e8`, one accent zone red `#c62b22`. Red is the danger zone only.
 - **Type**: Barlow Condensed (800 italic for headings, 700 for HUD labels) because the game's logo and HUD are condensed italic caps; Barlow 400/600 for reading. Both OFL, self-hosted. BOMBARD (the game's font) is not used because no license was found.

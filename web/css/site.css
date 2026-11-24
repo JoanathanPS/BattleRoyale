@@ -232,9 +232,23 @@ button:disabled {
   align-items: center;
   gap: 12px 20px;
 }
-.brand img {
-  width: 150px;
-  aspect-ratio: 643 / 120;
+/* Text wordmark: ink on paper. The game's own logo is white-filled and disappears on a light page. */
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  color: var(--ink);
+  font: 800 italic 30px/1 var(--hud);
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+.brand b {
+  padding: 3px 9px 3px 7px;
+  background: var(--zone);
+  color: #fff;
+  font-weight: 800;
 }
 .bar nav {
   margin-left: auto;
@@ -323,15 +337,26 @@ button:disabled {
   }
 }
 @media (max-width: 480px) {
-  .bar__in {
-    gap: 6px;
+  :root {
+    --bar-h: 96px;
   }
-  .brand img {
-    width: 104px;
+  .bar__in {
+    flex-wrap: wrap;
+    gap: 0;
+    min-height: 0;
+    padding-top: 6px;
+  }
+  .brand {
+    font-size: 26px;
+    min-height: 40px;
+  }
+  .bar nav {
+    width: 100%;
+    margin-left: 0;
+    justify-content: space-between;
   }
   .bar nav a {
     padding: 0 6px;
-    font-size: 17px;
   }
 }
 
