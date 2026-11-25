@@ -1,0 +1,4 @@
+# Copy this file to core/assets/supabase.properties and fill in your real values.
+# supabase.properties is gitignored so the anon key is never committed to the repo.
+supabase.url=https://XXXX.supabase.co
+supabase.anonKey=<your-anon-key>
