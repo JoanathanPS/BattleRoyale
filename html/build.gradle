@@ -34,12 +34,21 @@ task compileGwt(type: JavaExec) {
     }
 }
 
-task copyAssets(type: Copy) {
-    from "../core/assets"
-    into "$buildDir/webapp/assets"
+// The GWT preloader writes the asset bundle and its manifest (assets.txt) to war/assets.
+task webDist(dependsOn: compileGwt) {
+    description = "Compiles the browser build and copies it into ../web for deployment."
+    doLast {
+        delete "../web/battlearena", "../web/assets"
+        copy {
+            from "$buildDir/webapp/battlearena"
+            into "../web/battlearena"
+        }
+        copy {
+            from "war/assets"
+            into "../web/assets"
+        }
+    }
 }
-
-compileGwt.finalizedBy copyAssets
 
 eclipse {
     project {

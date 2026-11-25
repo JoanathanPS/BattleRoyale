@@ -24,7 +24,6 @@ import com.joanathanps.battlearena.scenes.Match;
 
 import java.util.ArrayList;
 
-
 import static com.joanathanps.battlearena.scheme.PhysicsAdapter.*;
 
 public class WorldBuilder {

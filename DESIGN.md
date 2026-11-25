@@ -7,7 +7,7 @@ Dial: ENERGY 3 / RHYTHM 3 / MOTION 2
 Design Read: game launch portal for people who want to try a browser game in one click, flat daylight island style taken from the game's own art.
 
 ## Identity motif
-The shrinking safe-zone ring. The header minimap shrinks its ring one step per section (4 steps, like the game's 4 shrinks). The hero shows the island with the red outside-the-zone shading. Nothing else uses red.
+The shrinking safe-zone ring. The header minimap shrinks its ring one step per section (4 steps). The hero shows the island with the red outside-the-zone shading. Nothing else uses red.
 
 ## Decisions, one line each
 - **Name and wordmark**: "Battle Royale Lite", the title on the game's own logo and menu. The header wordmark is live text (Barlow Condensed italic, ink on paper, "Lite" in a red block). The game's logo PNG is white-filled and disappears on a light page, so it is not used.

@@ -78,7 +78,7 @@ public class NearbyLootWidget implements Disposable {
         nearbyItems.clear();
         parentContainers.clear();
 
-        // 1. Check crates and chests (close proximity + no walls in between)
+        // Check crates and chests (close proximity + no walls in between)
         if (match.getWorldBuilder() != null) {
             WaypointNavigator nav = match.getWorldBuilder().getWaypointNavigator();
 
@@ -97,7 +97,7 @@ public class NearbyLootWidget implements Disposable {
                 }
             }
 
-            // 2. Check dead enemies
+            // Check dead enemies
             for (Enemy enemy : match.getWorldBuilder().getEnemies()) {
                 if (enemy.isDead()) {
                     Vector2 enemyPos = enemy.getBody().getPosition();
@@ -200,7 +200,7 @@ public class NearbyLootWidget implements Disposable {
 
         batch.begin();
 
-        // 1. Dark panel background
+        // Dark panel background
         batch.setColor(0.08f, 0.08f, 0.10f, 0.88f);
         batch.draw(pixelTex, PANEL_X, panelY, PANEL_W, panelH);
 
@@ -220,7 +220,7 @@ public class NearbyLootWidget implements Disposable {
         tipFont.setColor(0.7f, 0.7f, 0.7f, 1f);
         tipFont.draw(batch, "[Up/Down] Select  [Enter/E] Loot", PANEL_X + 12f, panelY + 16f);
 
-        // 2. Draw Item Rows
+        // Draw Item Rows
         float startY = panelY + panelH - 46f - ROW_H;
         for (int i = 0; i < nearbyItems.size(); i++) {
             EntityObject item = nearbyItems.get(i);

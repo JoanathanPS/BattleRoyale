@@ -5,7 +5,7 @@ Static site for the game, deployed on Vercel at [battleroyale.joanathan.in](http
 ## What is here
 - `index.html`, `css/`, `js/`, `fonts/`, `img/`: the portal. Plain HTML, CSS and JavaScript. Fonts (Barlow, OFL) are self-hosted.
 - `game.html`, `battlearena/`, `assets/`: the compiled game (GWT/WebGL). The portal embeds `game.html` in an iframe. Do not edit these by hand.
-- `BattleRoyaleArena-1.0.jar`, `Launch-BattleRoyaleArena.bat`: the desktop build and its Windows launcher.
+- `BattleRoyaleLite.jar`, `Launch-BattleRoyaleLite.bat`: the desktop build and its Windows launcher.
 - Live leaderboard: read from the Supabase `match_results` table with the public anon key (`js/leaderboard.js`).
 
 ## Run it locally
@@ -18,11 +18,11 @@ python3 -m http.server 8000   # then open http://localhost:8000
 On Windows, double-click `Run-Local-Server.bat`.
 
 ## When the JAR changes
-The download section shows the file size and SHA-256 of `BattleRoyaleArena-1.0.jar`. After rebuilding it, update both in `index.html`:
+The download section shows the file size and SHA-256 of `BattleRoyaleLite.jar`. After rebuilding it, update both in `index.html`:
 
 ```bash
-sha256sum BattleRoyaleArena-1.0.jar
-stat -c %s BattleRoyaleArena-1.0.jar
+sha256sum BattleRoyaleLite.jar
+stat -c %s BattleRoyaleLite.jar
 ```
 
 ## Deploy to Vercel

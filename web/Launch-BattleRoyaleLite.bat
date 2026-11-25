@@ -1,8 +1,8 @@
 @echo off
-title Battle Royale Arena
-echo Launching Battle Royale Arena...
+title Battle Royale Lite
+echo Launching Battle Royale Lite...
 echo.
-java -jar "BattleRoyaleArena-1.0.jar"
+java -jar "BattleRoyaleLite.jar"
 if %ERRORLEVEL% NEQ 0 (
     echo.
     echo [ERROR] Java not found or the game crashed.

@@ -158,8 +158,6 @@ public class HUD implements Disposable {
         nearbyLootWidget = new NearbyLootWidget(match);
     }
 
-    // ---- per-frame entry points, called by Match ----
-
     public void update(float delta) {
         refreshSlots();
         for (int i = feed.size() - 1; i >= 0; i--) {
@@ -215,8 +213,6 @@ public class HUD implements Disposable {
             nearbyLootWidget.draw(batch);
         }
     }
-
-    // ---- top: zone banner, counters, kill feed ----
 
     private void drawZoneBanner(Batch batch) {
         SafeZoneController zone = match.getSafeZoneController();
@@ -285,8 +281,6 @@ public class HUD implements Disposable {
         }
     }
 
-    // ---- bottom: bars, ammo, callout ----
-
     private void drawBars(Batch batch) {
         Player player = match.getPlayer();
         float x = (GAME_WIDTH - BAR_WIDTH) / 2f;
@@ -335,8 +329,6 @@ public class HUD implements Disposable {
         drawCentered(batch, callout, calloutText, GAME_WIDTH / 2f, GAME_HEIGHT / 2f - 110);
     }
 
-    // ---- minimap ----
-
     private void drawMinimap(Batch batch) {
         Vector2 player = match.getPlayer().getBody().getPosition();
         float centerX = MINIMAP_X + MINIMAP_SIZE / 2f;
@@ -381,8 +373,6 @@ public class HUD implements Disposable {
         batch.end();
     }
 
-    // ---- events from the match ----
-
     public void onElimination(Soldier victim, Soldier killer) {
         Player player = match.getPlayer();
         String killerName = killer == null ? text("zone") : killer.getName();
@@ -406,8 +396,6 @@ public class HUD implements Disposable {
             gunshots.add(new Gunshot(position));
         }
     }
-
-    // ---- inventory slots ----
 
     private void refreshSlots() {
         ArrayList<EntityObject> items = match.getPlayer().getInventory().getItems();
@@ -439,8 +427,6 @@ public class HUD implements Disposable {
     public boolean isPointerOverLootPanel() {
         return nearbyLootWidget.isPointerOver();
     }
-
-    // ---- helpers ----
 
     private void drawCentered(Batch batch, BitmapFont font, String value, float centerX, float top) {
         layout.setText(font, value);

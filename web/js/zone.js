@@ -1,4 +1,4 @@
-// Header minimap: the safe-zone ring shrinks one step per section, like the game's 4 shrinks.
+// Header minimap: the safe-zone ring shrinks one step per section, one step per section.
 // State-driven (the section in view), so the ring matches what you are reading. Also sets nav aria-current.
 (() => {
   const ids = ["drop", "play", "loadout", "results", "download"];

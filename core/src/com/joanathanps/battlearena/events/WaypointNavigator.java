@@ -38,23 +38,10 @@ public class WaypointNavigator {
         this.waypoints = new ArrayList<>();
     }
 
-    // -----------------------------------------------------------------------
-    // Registration
-    // -----------------------------------------------------------------------
-
     /** Register a single entry-point waypoint. */
     public void addWaypoint(NavigationWaypoint waypoint) {
         waypoints.add(waypoint);
     }
-
-    /** Register multiple entry-point waypoints at once. */
-    public void addWaypoints(ArrayList<NavigationWaypoint> points) {
-        waypoints.addAll(points);
-    }
-
-    // -----------------------------------------------------------------------
-    // Navigation
-    // -----------------------------------------------------------------------
 
     /**
      * Returns the position the bot should move toward next.
@@ -148,11 +135,4 @@ public class WaypointNavigator {
         return !blocked[0];
     }
 
-    // -----------------------------------------------------------------------
-    // Accessors
-    // -----------------------------------------------------------------------
-
-    public ArrayList<NavigationWaypoint> getWaypoints() {
-        return waypoints;
-    }
 }

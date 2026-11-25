@@ -137,8 +137,6 @@ public class Match implements Screen {
         enterState(GameState.RUNNING);
     }
 
-    // ---- state ----
-
     private void enterState(GameState next) {
         state = next;
         input.resetAllKeys();
@@ -194,8 +192,6 @@ public class Match implements Screen {
             gameOverTimer = 0.6f;
         }
     }
-
-    // ---- update ----
 
     private void update(float delta) {
         if (isPlaying()) {
@@ -314,8 +310,6 @@ public class Match implements Screen {
         camera.update();
     }
 
-    // ---- render ----
-
     @Override
     public void render(float delta) {
         update(delta);
@@ -412,8 +406,6 @@ public class Match implements Screen {
         matchMap.dispose();
         gameOver.dispose();
     }
-
-    // ---- accessors ----
 
     public int getAliveCount() {
         int alive = 0;

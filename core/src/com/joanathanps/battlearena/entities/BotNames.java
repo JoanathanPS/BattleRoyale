@@ -18,10 +18,11 @@ public final class BotNames {
             "ScopeGod", "SavageSpoon", "GlitchGremlin", "LagWizard"
     };
 
-    private final String[] pool = NAMES.clone();
+    private final String[] pool = new String[NAMES.length];
     private int next;
 
     public BotNames() {
+        System.arraycopy(NAMES, 0, pool, 0, NAMES.length);
         for (int i = pool.length - 1; i > 0; i--) {
             int j = MathUtils.random(i);
             String swap = pool[i];

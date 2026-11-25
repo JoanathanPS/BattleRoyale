@@ -116,7 +116,7 @@ public abstract class Soldier extends Entity {
             // A dedicated size, because this font is scaled down to world units and fonts are shared.
             labelFont = FontGenerator.generateOutlined(ResourceHandler.FontPath.BOMBARD, 33, 2f);
             labelFont.setUseIntegerPositions(false);
-            labelFont.getData().setScale(PhysicsAdapter.getScale() * 0.5f);
+            labelFont.getData().setScale(labelFont.getData().scaleX * PhysicsAdapter.getScale() * 0.5f);
         }
         punchSwipe = new Sprite(punchSwipeTexture);
         punchImpact = new Sprite(punchSwipeTexture);

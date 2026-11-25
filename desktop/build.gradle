@@ -31,7 +31,7 @@ task debug(dependsOn: classes, type: JavaExec) {
 task dist(type: Jar) {
     dependsOn configurations.runtimeClasspath
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    archiveBaseName = "BattleRoyale"
+    archiveFileName = "BattleRoyaleLite.jar"
     from files(sourceSets.main.output.classesDirs)
     from files(sourceSets.main.output.resourcesDir)
     from {configurations.runtimeClasspath.collect {zipTree(it)}}
@@ -43,6 +43,12 @@ task dist(type: Jar) {
 }
 
 dist.dependsOn classes
+
+task webDist(type: Copy, dependsOn: dist) {
+    description = "Builds the desktop JAR and copies it into ../web for download."
+    from dist
+    into "../web"
+}
 
 eclipse {
     project {

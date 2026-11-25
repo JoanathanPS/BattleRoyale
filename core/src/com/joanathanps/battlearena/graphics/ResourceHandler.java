@@ -27,16 +27,12 @@ public final class ResourceHandler implements Disposable {
         PLAYER_MARK("textures/gui/maps/player-mark.png"),
         BLACK_BACKGROUND("textures/gui/backgrounds/black-background.png"),
         EVENT_BACKGROUND("textures/gui/backgrounds/event-background.png"),
-        SAFEZONE("textures/world/safezone.png"),
-        DANGER_ZONE("textures/world/danger-zone.png"),
         EMPTY_BAR("textures/gui/health/empty-bar.png"),
         HEALTH_BAR("textures/gui/health/health-bar.png"),
         ARMOR_BAR("textures/gui/health/armor-bar.png"),
         HEALTH_ICON("textures/gui/health/health-icon.png"),
         ARMOR_ICON("textures/gui/health/armor-icon.png"),
         VIGNETTE("textures/overlay/vignette.png"),
-        INTERACTION_BUTTON("textures/world/interaction-button.png"),
-        EXCHANGE_ICON("textures/gui/icons/exchange.png"),
         LOADING_SCREEN("textures/gui/backgrounds/loading-screen.png"),
         GAME_ICON("textures/gui/icons/game-icon.png"),
         EMPTY_SLOT("textures/gui/items/empty-slot.png"),
@@ -45,7 +41,6 @@ public final class ResourceHandler implements Disposable {
         INVISIBLE_SLOT("textures/gui/items/invisible-slot.png"),
         SELECTED_SLOT("textures/gui/items/selected-slot.png"),
         GENERIC_PROGRESS_BAR("textures/gui/bars/generic-progress-bar.png"),
-        SOLDIER_BODY("textures/gui/icons/soldier-body.png"),
         COMBAT_HELMET("textures/gui/items/equipment/combat-helmet.png"),
         HALF_HELMET("textures/gui/items/equipment/half-helmet.png"),
         MILITARY_VEST("textures/gui/items/equipment/military-vest.png"),
@@ -56,17 +51,11 @@ public final class ResourceHandler implements Disposable {
         P26("textures/gui/items/weapons/p26.png"),
         STAR("textures/gui/items/weapons/star.png"),
         W16A("textures/gui/items/weapons/w16a.png"),
-        FIVE_FIVE_SIX("textures/gui/items/ammo/five-five-six.png"),
-        NINE("textures/gui/items/ammo/nine.png"),
-        SEVEN_SIX_TWO("textures/gui/items/ammo/seven-six-two.png"),
         BULLET("textures/projectiles/bullet.png"),
         POINTLIGHT("textures/world/pointlight.png"),
-        SAFEZONE_EXPANDED("textures/world/safezone-expanded.png"),
-        NEXT_SAFEZONE_EXPANDED("textures/world/next-safezone-expanded.png"),
         WATER_BACKGROUND("textures/world/water-background.png"),
         DEAD_LOOT("textures/world/dead-loot.png"),
         ALIVE_INDICATOR_BG("textures/gui/backgrounds/alive-indicator-bg.png"),
-        THIN_ARROW("textures/gui/icons/thin-arrow.png"),
         SAILING("textures/gui/icons/sailing.png"),
         IS_DED("textures/gui/icons/is-ded.png");
 
@@ -304,23 +293,18 @@ public final class ResourceHandler implements Disposable {
         assetManager.load(TexturePath.MATCH_MINIMAP_FRAME.path, Texture.class);
         assetManager.load(TexturePath.PLAYER_MARK.path, Texture.class);
         assetManager.load(TexturePath.EVENT_BACKGROUND.path, Texture.class);
-        assetManager.load(TexturePath.SAFEZONE.path, Texture.class);
-        assetManager.load(TexturePath.DANGER_ZONE.path, Texture.class);
         assetManager.load(TexturePath.EMPTY_BAR.path, Texture.class);
         assetManager.load(TexturePath.HEALTH_BAR.path, Texture.class);
         assetManager.load(TexturePath.ARMOR_BAR.path, Texture.class);
         assetManager.load(TexturePath.HEALTH_ICON.path, Texture.class);
         assetManager.load(TexturePath.ARMOR_ICON.path, Texture.class);
         assetManager.load(TexturePath.VIGNETTE.path, Texture.class);
-        assetManager.load(TexturePath.INTERACTION_BUTTON.path, Texture.class);
-        assetManager.load(TexturePath.EXCHANGE_ICON.path, Texture.class);
         assetManager.load(TexturePath.EMPTY_SLOT.path, Texture.class);
         assetManager.load(TexturePath.MEDKIT_ICON.path, Texture.class);
         assetManager.load(TexturePath.INVENTORY.path, Texture.class);
         assetManager.load(TexturePath.INVISIBLE_SLOT.path, Texture.class);
         assetManager.load(TexturePath.SELECTED_SLOT.path, Texture.class);
         assetManager.load(TexturePath.GENERIC_PROGRESS_BAR.path, Texture.class);
-        assetManager.load(TexturePath.SOLDIER_BODY.path, Texture.class);
         assetManager.load(TexturePath.COMBAT_HELMET.path, Texture.class);
         assetManager.load(TexturePath.HALF_HELMET.path, Texture.class);
         assetManager.load(TexturePath.MILITARY_VEST.path, Texture.class);
@@ -331,17 +315,11 @@ public final class ResourceHandler implements Disposable {
         assetManager.load(TexturePath.P26.path, Texture.class);
         assetManager.load(TexturePath.STAR.path, Texture.class);
         assetManager.load(TexturePath.W16A.path, Texture.class);
-        assetManager.load(TexturePath.FIVE_FIVE_SIX.path, Texture.class);
-        assetManager.load(TexturePath.NINE.path, Texture.class);
-        assetManager.load(TexturePath.SEVEN_SIX_TWO.path, Texture.class);
         assetManager.load(TexturePath.BULLET.path, Texture.class);
         assetManager.load(TexturePath.POINTLIGHT.path, Texture.class);
-        assetManager.load(TexturePath.SAFEZONE_EXPANDED.path, Texture.class);
-        assetManager.load(TexturePath.NEXT_SAFEZONE_EXPANDED.path, Texture.class);
         assetManager.load(TexturePath.WATER_BACKGROUND.path, Texture.class);
         assetManager.load(TexturePath.DEAD_LOOT.path, Texture.class);
         assetManager.load(TexturePath.ALIVE_INDICATOR_BG.path, Texture.class);
-        assetManager.load(TexturePath.THIN_ARROW.path, Texture.class);
         assetManager.load(TexturePath.SAILING.path, Texture.class);
         assetManager.load(TexturePath.IS_DED.path, Texture.class);
         assetManager.finishLoading();
