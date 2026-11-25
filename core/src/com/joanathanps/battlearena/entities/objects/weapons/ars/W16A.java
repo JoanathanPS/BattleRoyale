@@ -7,17 +7,12 @@ public class W16A extends AssaultRifle {
 
     public W16A(Match match) {
         super(match);
-        setAttributes();
-    }
-
-    private void setAttributes() {
         setName(getI18n().getBundle().get("w16A"));
         setIcon(getResources().getTexture(ResourceHandler.TexturePath.W16A));
         setDamage(9);
-        setRateOfFire(.2f);
-        setReloadTime(4);
+        setSecondsBetweenShots(.2f);
+        setReloadSeconds(4);
         setMagCapacity(20);
-        setAccuracy(4);
-        setRarity(3);
+        setTier(4);
     }
 }

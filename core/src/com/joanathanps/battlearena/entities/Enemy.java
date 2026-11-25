@@ -6,53 +6,29 @@ import com.badlogic.gdx.math.Vector2;
 import com.joanathanps.battlearena.entities.objects.LootPickup;
 import com.joanathanps.battlearena.entities.objects.NPCInventory;
 import com.joanathanps.battlearena.events.AI;
-import com.joanathanps.battlearena.events.SteeringBehavior;
 import com.joanathanps.battlearena.graphics.AnimationRegion;
 import com.joanathanps.battlearena.scenes.Match;
 
 import static com.joanathanps.battlearena.scheme.PhysicsAdapter.*;
 
-public class Enemy extends Soldier implements SteeringBehavior, Lootable {
+public class Enemy extends Soldier implements Lootable {
+
+    private static final int SPEED = 8;
 
     private AI ai;
-    private Vector2 target;
-    private boolean isVisible;
+    private final Vector2 force = new Vector2();
+    private Vector2 moveTarget;
+    private Vector2 aimTarget;
     private boolean playerIsColliding;
     private float pursuitMultiplier = 1f;
+    private float ghostTime;
 
-    private static int botCounter = 1;
-
-    public Enemy(Match match, float radius, float linearDamping, int speed, Vector2 position, int index) {
-        super(match, position, radius, linearDamping, speed, AnimationRegion.SOLDIER, ENEMY_TAG,
+    public Enemy(Match match, Vector2 position, String name) {
+        super(match, position, 35, 5, SPEED, AnimationRegion.SOLDIER, ENEMY_TAG,
                 (short) (DEFAULT_TAG | BUILDING_TAG | LOOT_TAG | WATER_TAG | PLAYER_TAG | ENEMY_TAG | BULLET_TAG),
-                null, BotNames.getNextName(index));
+                null, name);
         setColor(1.0f, 0.4f, 0.3f, 1.0f);
-        isVisible = true;
-        setUserData();
-    }
-
-    public void setPursuit(boolean pursuing) {
-        pursuitMultiplier = pursuing ? 1.7f : 1f;
-    }
-
-    private void updateRotation(float delta) {
-        if (target != null) {
-            float angle = MathUtils.radiansToDegrees * MathUtils.atan2(
-                    target.y - (getY() + pCenter(getHeight())),
-                    target.x - (getX() + pCenter(getWidth())));
-
-            if(angle < 0){
-                angle += 360;
-            }
-            setRotation(angle - 90);
-        }
-    }
-
-    @Override
-    public void draw(Batch batch) {
-        if (isVisible) {
-            super.draw(batch);
-        }
+        getFixture().setUserData(this);
     }
 
     @Override
@@ -64,63 +40,96 @@ public class Enemy extends Soldier implements SteeringBehavior, Lootable {
 
     @Override
     public void update(float delta) {
-        if (!isDead()) {
-            super.update(delta);
-            getInventory().update(delta);
-            ai.update(delta);
-            updateRotation(delta);
-        } else {
+        if (isDead()) {
             if (playerIsColliding && LootPickup.hasItems(getInventory().getItems())) {
                 LootPickup.collect(getMatch().getPlayer().getInventory(), getInventory().getItems());
+            }
+            return;
+        }
+        super.update(delta);
+        getInventory().update(delta);
+        ai.update(delta);
+        updateRotation();
+        updateGhost(delta);
+    }
+
+    /** Faces the aim target while fighting, otherwise the direction of travel. */
+    private void updateRotation() {
+        Vector2 lookAt = aimTarget != null ? aimTarget : moveTarget;
+        if (lookAt == null) {
+            return;
+        }
+        Vector2 position = getBody().getPosition();
+        float angle = MathUtils.atan2(lookAt.y - position.y, lookAt.x - position.x) * MathUtils.radiansToDegrees;
+        setRotation(angle - 90);
+    }
+
+    /** Pushes the bot toward a point. */
+    public void seek(Vector2 target) {
+        moveTarget = target;
+        Vector2 position = getBody().getPosition();
+        force.set(target.x - position.x, target.y - position.y).nor().scl(getSpeed() * pursuitMultiplier);
+        getBody().applyForceToCenter(force, true);
+    }
+
+    /** Point to aim at, or null to look where it walks. */
+    public void aimAt(Vector2 target) {
+        aimTarget = target;
+    }
+
+    public void setPursuit(boolean pursuing) {
+        pursuitMultiplier = pursuing ? 1.5f : 1f;
+    }
+
+    /**
+     * Lets a bot that is stuck on scenery pass through it for a moment. Only used off-screen,
+     * so the player never sees a bot walk through a wall.
+     */
+    public void ghost(float seconds) {
+        ghostTime = seconds;
+        getFixture().setSensor(true);
+    }
+
+    private void updateGhost(float delta) {
+        if (ghostTime > 0) {
+            ghostTime -= delta;
+            if (ghostTime <= 0) {
+                getFixture().setSensor(false);
             }
         }
     }
 
     @Override
+    public void draw(Batch batch) {
+        if (ghostTime <= 0 || isDead()) {
+            super.draw(batch);
+        }
+    }
+
+    @Override
     protected void verifyItems() {
-        Object selectedObjectClass = getInventory().getItem(ai.getSelectedInventorySlot()).getClass();
-        Object selectedAmorClass = getInventory().getEquipmentItems().get(1).getClass();
+        Object selectedObjectClass = getInventory().getSelectedItem().getClass();
+        Object selectedArmorClass = getInventory().getEquipmentItems().get(1).getClass();
         Object selectedHelmetClass = getInventory().getEquipmentItems().get(0).getClass();
 
-        if (selectedObjectClass != getLastSelectedObjectClass() || selectedAmorClass != getLastEquippedArmorClass() ||
+        if (selectedObjectClass != getLastSelectedObjectClass() || selectedArmorClass != getLastEquippedArmorClass() ||
                 selectedHelmetClass != getLastEquippedHelmetClass()) {
-            getAnimator().verify(selectedAmorClass, selectedHelmetClass, selectedObjectClass);
+            getAnimator().verify(selectedArmorClass, selectedHelmetClass, selectedObjectClass);
         }
         setLastSelectedObjectClass(selectedObjectClass);
-        setLastEquippedArmorClass(selectedAmorClass);
+        setLastEquippedArmorClass(selectedArmorClass);
         setLastEquippedHelmetClass(selectedHelmetClass);
     }
 
     @Override
-    public boolean seek(Vector2 target) {
-        this.target = target;
-        Vector2 direction = new Vector2();
-        direction.x = target.x - getBody().getPosition().x;
-        direction.y = target.y - getBody().getPosition().y;
-        direction = direction.nor();
-        getBody().applyForce(new Vector2(direction.x * getSpeed() * pursuitMultiplier,
-                direction.y * getSpeed() * pursuitMultiplier), getBody().getWorldCenter(), true);
-        return true;
-    }
-
-    @Override
     protected void die() {
-        setDead(true);
-        isVisible = true;
-        getBody().getFixtureList().first().setSensor(true);
-    }
-
-    private void setUserData() {
-        getFixture().setUserData(this);
+        ghostTime = 0;
+        getBody().setLinearVelocity(0, 0);
+        getFixture().setSensor(true);
     }
 
     public AI getAi() {
         return ai;
-    }
-
-    @Override
-    public void setVisible(boolean visible) {
-        isVisible = visible;
     }
 
     public void onPlayerEnter() {
@@ -131,11 +140,10 @@ public class Enemy extends Soldier implements SteeringBehavior, Lootable {
         playerIsColliding = false;
     }
 
+    /** Another bot walked over this corpse. */
     public void onEnemyEnter(Enemy enemy) {
-        enemy.getAi().searchForItems(getInventory().getItems());
-    }
-
-    public void onEnemyLeave(Enemy enemy) {
-
+        if (isDead()) {
+            enemy.getAi().searchForItems(getInventory().getItems());
+        }
     }
 }

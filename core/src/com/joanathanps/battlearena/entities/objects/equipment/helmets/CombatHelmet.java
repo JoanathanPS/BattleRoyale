@@ -25,7 +25,7 @@ public class CombatHelmet extends Helmet {
         setIcon(getResources().getTexture(ResourceHandler.TexturePath.COMBAT_HELMET));
         setArmorPoints(60);
         takeDamage(0);
-        setRarity(3);
+        setTier(2);
         updateName();
     }
 }

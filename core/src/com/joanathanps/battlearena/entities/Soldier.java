@@ -1,6 +1,5 @@
 package com.joanathanps.battlearena.entities;
 
-import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
@@ -14,10 +13,10 @@ import com.badlogic.gdx.physics.box2d.BodyDef;
 import com.badlogic.gdx.physics.box2d.Fixture;
 import com.badlogic.gdx.utils.Align;
 import com.joanathanps.battlearena.entities.objects.Empty;
+import com.joanathanps.battlearena.entities.objects.EntityObject;
 import com.joanathanps.battlearena.entities.objects.Inventory;
 import com.joanathanps.battlearena.entities.objects.equipment.armor.Armor;
 import com.joanathanps.battlearena.entities.objects.equipment.helmets.Helmet;
-import com.joanathanps.battlearena.entities.projectiles.Bullet;
 import com.joanathanps.battlearena.forge.BodyBuilder;
 import com.joanathanps.battlearena.forge.WorldBuilder;
 import com.joanathanps.battlearena.graphics.AnimationRegion;
@@ -60,10 +59,12 @@ public abstract class Soldier extends Entity {
 
     private Texture pointlight;
 
-    private boolean isFiring;
+    private static final float MUZZLE_FLASH_TIME = 0.05f;
+    private float muzzleFlashTime;
     private int kills;
 
     private boolean isDead;
+    private Soldier killer;
 
     private static final int MELEE_DAMAGE = 5;
     private static final float MELEE_RANGE = 1.5f;
@@ -112,18 +113,10 @@ public abstract class Soldier extends Entity {
             pixmap.dispose();
         }
         if (labelFont == null) {
-            // Clean white text with minimal border and no shadow
-            labelFont = FontGenerator.generateWithBorder(
-                    ResourceHandler.FontPath.BOMBARD,
-                    32,
-                    1.0f,
-                    new Color(0f, 0f, 0f, 0.9f),
-                    0,
-                    0,
-                    Color.CLEAR
-            );
+            // A dedicated size, because this font is scaled down to world units and fonts are shared.
+            labelFont = FontGenerator.generateOutlined(ResourceHandler.FontPath.BOMBARD, 33, 2f);
             labelFont.setUseIntegerPositions(false);
-            labelFont.getData().setScale(PhysicsAdapter.getScale() * 0.42f);
+            labelFont.getData().setScale(PhysicsAdapter.getScale() * 0.5f);
         }
         punchSwipe = new Sprite(punchSwipeTexture);
         punchImpact = new Sprite(punchSwipeTexture);
@@ -148,7 +141,6 @@ public abstract class Soldier extends Entity {
                 getBody().getPosition().y - pCenter(getHeight()));
         setRegion(animator.getFrame(delta, .7f));
         verifyItems();
-        verifyHealth();
         if (punchCooldownCount > 0) {
             punchCooldownCount -= delta;
         }
@@ -158,21 +150,83 @@ public abstract class Soldier extends Entity {
         if (punchImpactCount > 0) {
             punchImpactCount -= delta;
         }
+        if (muzzleFlashTime > 0) {
+            muzzleFlashTime -= delta;
+        }
     }
 
     protected abstract void verifyItems();
 
-    private void verifyHealth() {
-        if (health <= 0) {
-            health = 0;
+    protected abstract void die();
+
+    /** Zone damage ignores armor, like in most battle royales. */
+    public void takeZoneDamage(int amount) {
+        applyDamage(amount, null, false);
+    }
+
+    /** Bullet and melee damage. Armor takes the hit first; whatever it cannot absorb reaches health. */
+    public void takeDamage(int amount, Soldier attacker) {
+        applyDamage(amount, attacker, true);
+    }
+
+    private void applyDamage(int amount, Soldier attacker, boolean armorCanAbsorb) {
+        if (isDead || amount <= 0) {
+            return;
+        }
+        int remaining = armorCanAbsorb ? absorbWithArmor(amount) : amount;
+        health = Math.max(0, health - remaining);
+        onDamaged(amount);
+        if (health == 0) {
+            isDead = true;
+            killer = attacker;
+            if (attacker != null && attacker != this) {
+                attacker.kills++;
+            }
             die();
+            getMatch().onElimination(this, attacker);
         }
     }
 
-    protected abstract void die();
+    /** Hook for feedback when this soldier is hit, such as the player's red flash. */
+    protected void onDamaged(int amount) {
+    }
 
-    public void takeDangerZoneDamage() {
-        changeHealth(-5);
+    /**
+     * Splits the hit between helmet and vest, each capped by the points it has left,
+     * removes pieces that reach zero and returns the damage that gets through.
+     */
+    private int absorbWithArmor(int amount) {
+        EntityObject helmetItem = getInventory().getEquipmentItems().get(0);
+        EntityObject vestItem = getInventory().getEquipmentItems().get(1);
+        Helmet helmet = helmetItem instanceof Helmet ? (Helmet) helmetItem : null;
+        Armor vest = vestItem instanceof Armor ? (Armor) vestItem : null;
+        int helmetPoints = helmet != null ? Math.max(0, helmet.getArmorPoints()) : 0;
+        int vestPoints = vest != null ? Math.max(0, vest.getArmorPoints()) : 0;
+
+        int absorbed = Math.min(amount, helmetPoints + vestPoints);
+        if (absorbed == 0) {
+            return amount;
+        }
+        int fromVest = Math.min(vestPoints, (absorbed + 1) / 2);
+        int fromHelmet = Math.min(helmetPoints, absorbed - fromVest);
+        fromVest = absorbed - fromHelmet;
+
+        if (helmet != null && fromHelmet > 0) {
+            helmet.takeDamage(fromHelmet);
+            helmet.updateName();
+            if (helmet.getArmorPoints() <= 0) {
+                getInventory().getEquipmentItems().set(0, new Empty(getMatch()));
+            }
+        }
+        if (vest != null && fromVest > 0) {
+            vest.takeDamage(fromVest);
+            vest.updateName();
+            if (vest.getArmorPoints() <= 0) {
+                getInventory().getEquipmentItems().set(1, new Empty(getMatch()));
+            }
+        }
+        armor = Math.max(0, armor - absorbed);
+        return amount - absorbed;
     }
 
     public void punch() {
@@ -200,36 +254,16 @@ public abstract class Soldier extends Entity {
             }
         }
         if (nearest != null) {
-            nearest.takeMeleeDamage(MELEE_DAMAGE, this);
             punchHitTarget = nearest;
             punchImpactCount = PUNCH_IMPACT_TIME;
-        }
-    }
-
-    public void takeMeleeDamage(int damage, Soldier attacker) {
-        if (armor > 0) {
-            if (getInventory().getEquipmentItems().get(0).getClass() != Empty.class) {
-                ((Helmet)getInventory().getEquipmentItems().get(0)).takeDamage(damage / 2);
-                ((Helmet)getInventory().getEquipmentItems().get(0)).updateName();
-            }
-            if (getInventory().getEquipmentItems().get(1).getClass() != Empty.class) {
-                ((Armor)getInventory().getEquipmentItems().get(1)).takeDamage(damage / 2);
-                ((Armor)getInventory().getEquipmentItems().get(1)).updateName();
-            }
-        } else {
-            health -= damage;
-            if (health <= 0) {
-                attacker.accountKill();
-                Gdx.app.log("COMBAT", (attacker instanceof Player ? "PLAYER" : "BOT")
-                        + " KILLED " + (this instanceof Player ? "PLAYER" : "BOT"));
-            }
+            nearest.takeDamage(MELEE_DAMAGE, this);
         }
     }
 
     @Override
     public void draw(Batch batch) {
         if (!isDead) {
-            if (isFiring) {
+            if (muzzleFlashTime > 0) {
                 batch.draw(pointlight,
                         getBody().getPosition().x - pScaleCenter(pointlight.getWidth()),
                         getBody().getPosition().y - pScaleCenter(pointlight.getHeight()),
@@ -275,8 +309,8 @@ public abstract class Soldier extends Entity {
         }
     }
 
-    public void setFiring(boolean firing) {
-        isFiring = firing;
+    public void flashMuzzle() {
+        muzzleFlashTime = MUZZLE_FLASH_TIME;
     }
 
     public void switchAnimation(AnimationRegion animationRegion, ResourceHandler.TextureAtlasPath textureAtlasPath) {
@@ -287,7 +321,13 @@ public abstract class Soldier extends Entity {
         setOrigin(pScaleCenter(animationRegion.getFrameWidth()), pScaleCenter(animationRegion.getFrameHeight()));
     }
 
-    public void changeHealth(int difference) {
+    public void heal(int amount) {
+        if (!isDead) {
+            changeHealth(amount);
+        }
+    }
+
+    private void changeHealth(int difference) {
         health = health + difference < 0 ? 0 : health + difference > 100 ? 100 : health + difference;
     }
 
@@ -351,37 +391,13 @@ public abstract class Soldier extends Entity {
         return animator;
     }
 
-    public void getShot(Bullet bullet) {
-        if (armor > 0) {
-            if (getInventory().getEquipmentItems().get(0).getClass() != Empty.class) {
-                ((Helmet)getInventory().getEquipmentItems().get(0)).takeDamage(bullet.getWeapon().getDamage() / 2);
-                ((Helmet)getInventory().getEquipmentItems().get(0)).updateName();
-            }
-            if (getInventory().getEquipmentItems().get(1).getClass() != Empty.class) {
-                ((Armor)getInventory().getEquipmentItems().get(1)).takeDamage(bullet.getWeapon().getDamage() / 2);
-                ((Armor)getInventory().getEquipmentItems().get(1)).updateName();
-            }
-        } else {
-            health -= bullet.getWeapon().getDamage();
-            if (health <= 0) {
-                Soldier killer = bullet.getWeapon().getLastSoldierToShoot();
-                killer.accountKill();
-                Gdx.app.log("COMBAT", (killer instanceof Player ? "PLAYER" : "BOT")
-                        + " KILLED " + (this instanceof Player ? "PLAYER" : "BOT"));
-            }
-        }
-    }
-
-    public void setDead(boolean dead) {
-        isDead = dead;
-    }
-
     public boolean isDead() {
         return isDead;
     }
 
-    private void accountKill() {
-        kills++;
+    /** Who eliminated this soldier, or null for the zone. */
+    public Soldier getKiller() {
+        return killer;
     }
 
     public int getKills() {

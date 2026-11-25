@@ -3,6 +3,7 @@ package com.joanathanps.battlearena.entities.tiles;
 import com.badlogic.gdx.math.Rectangle;
 import com.joanathanps.battlearena.entities.Enemy;
 import com.joanathanps.battlearena.entities.Lootable;
+import com.joanathanps.battlearena.entities.objects.Empty;
 import com.joanathanps.battlearena.entities.objects.EntityObject;
 import com.joanathanps.battlearena.entities.objects.LootPickup;
 import com.joanathanps.battlearena.entities.objects.Medkit;
@@ -39,10 +40,6 @@ public abstract class Loot extends InteractiveTile implements Lootable {
         items = new ArrayList<>();
     }
 
-    public void update(float delta) {
-        // Player interacts via the NearbyLootWidget when in proximity
-    }
-
     public boolean isPlayerColliding() {
         return playerIsColliding;
     }
@@ -53,7 +50,7 @@ public abstract class Loot extends InteractiveTile implements Lootable {
 
     public boolean hasItems() {
         for (EntityObject item : items) {
-            if (!(item instanceof com.joanathanps.battlearena.entities.objects.Empty)) {
+            if (!(item instanceof Empty)) {
                 return true;
             }
         }
@@ -84,10 +81,6 @@ public abstract class Loot extends InteractiveTile implements Lootable {
 
     }
 
-    public EntityObject getRandomItem() {
-        return rollItem();
-    }
-
     public EntityObject getRandomItemWithoutDuplicateWeapon(ArrayList<EntityObject> existingItems) {
         for (int attempts = 0; attempts < 20; attempts++) {
             EntityObject candidate = rollItem();
@@ -108,55 +101,23 @@ public abstract class Loot extends InteractiveTile implements Lootable {
         return false;
     }
 
+    /**
+     * Drop table, out of 100: medkit 13, soft vest 12, half helmet 9, military vest 6,
+     * combat helmet 3, G21 25, P26 12, STAR 10, W16A 5, M20 3, AW3 2.
+     */
     private EntityObject rollItem() {
-        int randomNumber = MathUtils.randomRange(1, 100);
-
-        if (randomNumber <= 13 ) {
-            Medkit item = new Medkit(getMatch());
-            item.setRarity(1);
-            return item;
-        } else if (randomNumber <= 25 ) {
-            SoftVest item = new SoftVest(getMatch());
-            item.setRarity(2);
-            return item;
-        } else if (randomNumber <= 34 ) {
-            HalfHelmet item = new HalfHelmet(getMatch());
-            item.setRarity(2);
-            return item;
-        } else if (randomNumber <= 40 ) {
-            MilitaryVest item = new MilitaryVest(getMatch());
-            item.setRarity(3);
-            return item;
-        } else if (randomNumber <= 43 ) {
-            CombatHelmet item = new CombatHelmet(getMatch());
-            item.setRarity(4);
-            return item;
-        } else if (randomNumber <= 68 ) {
-            G21 item = new G21(getMatch());
-            item.setRarity(5);
-            return item;
-        } else if (randomNumber <= 80 ) {
-            P26 item = new P26(getMatch());
-            item.setRarity(5);
-            return item;
-        } else if (randomNumber <= 90 ) {
-            STAR item = new STAR(getMatch());
-            item.setRarity(5);
-            return item;
-        } else if (randomNumber <= 95 ) {
-            W16A item = new W16A(getMatch());
-            item.setRarity(5);
-            return item;
-        } else if (randomNumber <= 98 ) {
-            M20 item = new M20(getMatch());
-            item.setRarity(5);
-            return item;
-        } else if (randomNumber <= 100 ) {
-            AW3 item = new AW3(getMatch());
-            item.setRarity(6);
-            return item;
-        }
-
-        return null;
+        int roll = MathUtils.randomRange(1, 100);
+        Match match = getMatch();
+        if (roll <= 13) return new Medkit(match);
+        if (roll <= 25) return new SoftVest(match);
+        if (roll <= 34) return new HalfHelmet(match);
+        if (roll <= 40) return new MilitaryVest(match);
+        if (roll <= 43) return new CombatHelmet(match);
+        if (roll <= 68) return new G21(match);
+        if (roll <= 80) return new P26(match);
+        if (roll <= 90) return new STAR(match);
+        if (roll <= 95) return new W16A(match);
+        if (roll <= 98) return new M20(match);
+        return new AW3(match);
     }
 }

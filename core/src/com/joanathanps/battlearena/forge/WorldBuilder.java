@@ -9,6 +9,8 @@ import com.badlogic.gdx.math.Polygon;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.BodyDef;
+import com.badlogic.gdx.utils.Array;
+import com.joanathanps.battlearena.entities.BotNames;
 import com.joanathanps.battlearena.entities.Enemy;
 import com.joanathanps.battlearena.entities.Lootable;
 import com.joanathanps.battlearena.entities.Soldier;
@@ -21,7 +23,7 @@ import com.joanathanps.battlearena.events.WaypointNavigator;
 import com.joanathanps.battlearena.scenes.Match;
 
 import java.util.ArrayList;
-import java.util.Random;
+
 
 import static com.joanathanps.battlearena.scheme.PhysicsAdapter.*;
 
@@ -46,6 +48,7 @@ public class WorldBuilder {
     private ArrayList<Chest> chests;
     private ArrayList<Enemy> enemies;
     private ArrayList<Building> buildings;
+    private ArrayList<Soldier> soldiers;
     private WaypointNavigator waypointNavigator;
     private Match match;
 
@@ -158,54 +161,28 @@ public class WorldBuilder {
     }
 
     private void buildEnemies() {
-        int maxEnemies = 8; // default
-        float difficultyMultiplier = 1f;
-        
-        // Adjust enemy count based on difficulty
-        switch (match.getDifficulty()) {
-            case EASY:
-                maxEnemies = 5;
-                difficultyMultiplier = 0.6f;
-                break;
-            case MEDIUM:
-                maxEnemies = 12;
-                difficultyMultiplier = 1.0f;
-                break;
-            case HARD:
-                maxEnemies = 20;
-                difficultyMultiplier = 1.4f;
-                break;
+        Array<Vector2> spawns = new Array<Vector2>();
+        for (MapObject object : match.getMap().getLayers().get(Layer.ENEMY_SPAWN_POINTS.index).getObjects()
+                .getByType(EllipseMapObject.class)) {
+            Ellipse ellipse = ((EllipseMapObject) object).getEllipse();
+            spawns.add(new Vector2(ellipse.x, ellipse.y));
         }
-        
-        int index = 0;
-        for (MapObject object :
-                match.getMap().getLayers().get(Layer.ENEMY_SPAWN_POINTS.index).getObjects()
-                        .getByType(EllipseMapObject.class)) {
-            if (index >= maxEnemies) break;
-            Ellipse rect = ((EllipseMapObject) object).getEllipse();
-            enemies.add(new Enemy(match, 35, 5, 8, new Vector2(rect.x, rect.y), index));
-            index++;
+        spawns.shuffle();
+        BotNames names = new BotNames();
+        int count = Math.min(match.getDifficulty().getBotCount(), spawns.size);
+        for (int i = 0; i < count; i++) {
+            enemies.add(new Enemy(match, spawns.get(i), names.next()));
         }
-//         instantiate a single enemy
-//            Ellipse rect = ((EllipseMapObject) match.getMap().getLayers()
-//                    .get(Layer.ENEMY_SPAWN_POINTS.index).getObjects().getByType(EllipseMapObject.class).get(20)).getEllipse();
-//            enemies.add(new Enemy(match, 35, 5, 8, new Vector2(rect.x, rect.y)));
     }
 
     public Vector2 getPlayerSpawnPoint() {
-        Vector2[] spawnPoints = new Vector2[20];
-        int count = 0;
-
-        for (MapObject object :
-                match.getMap().getLayers().get(Layer.PLAYER_SPAWN_POINTS.index).getObjects()
-                        .getByType(EllipseMapObject.class)) {
-            Ellipse rect = ((EllipseMapObject) object).getEllipse();
-            spawnPoints[count] = new Vector2(rect.x, rect.y);
-            count++;
+        Array<Vector2> spawns = new Array<Vector2>();
+        for (MapObject object : match.getMap().getLayers().get(Layer.PLAYER_SPAWN_POINTS.index).getObjects()
+                .getByType(EllipseMapObject.class)) {
+            Ellipse ellipse = ((EllipseMapObject) object).getEllipse();
+            spawns.add(new Vector2(ellipse.x, ellipse.y));
         }
-
-        int randomIndex = new Random().nextInt(spawnPoints.length);
-        return spawnPoints[randomIndex];
+        return spawns.random();
     }
 
     public ArrayList<Lootable> getAllLoot() {
@@ -227,11 +204,14 @@ public class WorldBuilder {
         return loot;
     }
 
+    /** The player and every bot, dead or alive. */
     public ArrayList<Soldier> getSoldiers() {
-        ArrayList<Soldier> soldiers = new ArrayList<>();
-        soldiers.add(match.getPlayer());
-        soldiers.addAll(enemies);
-        return soldiers;
+        if (soldiers == null && match.getPlayer() != null) {
+            soldiers = new ArrayList<>();
+            soldiers.add(match.getPlayer());
+            soldiers.addAll(enemies);
+        }
+        return soldiers != null ? soldiers : new ArrayList<Soldier>(enemies);
     }
 
     public ArrayList<Enemy> getEnemies() {

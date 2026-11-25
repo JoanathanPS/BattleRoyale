@@ -1,109 +1,80 @@
 package com.joanathanps.battlearena.entities.objects;
 
+import com.joanathanps.battlearena.entities.Player;
 import com.joanathanps.battlearena.entities.Soldier;
-import com.joanathanps.battlearena.entities.objects.ammo.Ammo;
 import com.joanathanps.battlearena.entities.objects.weapons.Weapon;
 import com.joanathanps.battlearena.scenes.Match;
 
-public class PlayerInventory extends Inventory{
+public class PlayerInventory extends Inventory {
 
-    public PlayerInventory(Match match, Soldier soldier) {
-        super(match, soldier);
+    private final Player player;
+
+    public PlayerInventory(Match match, Player player) {
+        super(match, player);
+        this.player = player;
+    }
+
+    @Override
+    public int getSelectedIndex() {
+        return getMatch().getHud().getSelectedSlot();
     }
 
     @Override
     public void useSelectedItem(Soldier soldier) {
-        Object selectedSlot = getItem(getMatch().getHud().getSelectedSlot());
-        if (selectedSlot.getClass() == Medkit.class) {
+        if (isSelectedBeingUsed()) {
+            return;
+        }
+        EntityObject selected = getSelectedItem();
+        if (selected instanceof Medkit) {
             if (soldier.getHealth() < 100) {
-                setSelectedBeingUsed(true);
-                getMatch().getProgress().setProgressSpeed(Medkit.timeToTransform());
-                getMatch().getPlayer().blockActions();
-                getMatch().getProgress().setActivity("healing");
+                startAction("healing", Medkit.USE_SECONDS, true);
             }
-        } else if (selectedSlot instanceof Weapon) {
-            ((Weapon)selectedSlot).shoot(soldier);
-        } else if (selectedSlot.getClass() == Empty.class) {
+        } else if (selected instanceof Weapon) {
+            Weapon weapon = (Weapon) selected;
+            if (weapon.getBullets() == 0) {
+                reloadSelectedWeapon();
+            } else {
+                weapon.shoot(soldier);
+            }
+        } else if (selected instanceof Empty) {
             soldier.punch();
         }
     }
 
     @Override
     public void reloadSelectedWeapon() {
-        Object selectedSlotClass = getItem(getMatch().getHud().getSelectedSlot());
-
-        if (selectedSlotClass instanceof Weapon) {
-            setSelectedBeingUsed(true);
-            getMatch().getProgress().setProgressSpeed(((Weapon)selectedSlotClass).getTimeToTransform());
-            getMatch().getPlayer().slowDown();
-            getMatch().getProgress().setActivity("reloading");
+        EntityObject selected = getSelectedItem();
+        if (!isSelectedBeingUsed() && selected instanceof Weapon
+                && ((Weapon) selected).getBullets() < ((Weapon) selected).getMagCapacity()) {
+            startAction("reloading", ((Weapon) selected).getReloadSeconds(), false);
         }
     }
 
-    @Override
-    public void applyAction() {
-        getItem(getMatch().getHud().getSelectedSlot()).transformSoldier(getMatch().getPlayer());
-        if (getItems().get(getMatch().getHud().getSelectedSlot()).getClass() == Medkit.class) {
-            getItems().set(getMatch().getHud().getSelectedSlot(), new Empty(getMatch()));
-        }
-    }
-
-    @Override
-    public void transferAmmo(int bulletsInWeapon) {
-        int bullets = bulletsInWeapon;
-        int amountNeeded = ((Weapon)getItem(getMatch().getHud().getSelectedSlot())).getMagCapacity() - bulletsInWeapon;
-        for (int i = 0; i < getItems().size(); i++) {
-
-            if (getItems().get(i) instanceof Ammo && amountNeeded > 0 &&
-                    ((Weapon)getItem(getMatch().getHud().getSelectedSlot())).getAmmoType() == getItems().get(i).getClass()) {
-
-                Ammo ammoBox = ((Ammo)getItems().get(i));
-                if (ammoBox.getAmount() >= amountNeeded) {
-                    bullets += amountNeeded;
-                    ammoBox.useAmount(amountNeeded);
-                    amountNeeded = 0;
-                } else {
-                    bullets += ammoBox.getAmount();
-                    amountNeeded -= ammoBox.getAmount();
-                    ammoBox.useAll();
-                }
-                if (ammoBox.getAmount() == 0) {
-                    getItems().set(i, new Empty(getMatch()));
-                } else {
-                    ammoBox.updateName();
-                }
-            }
-        }
-        ((Weapon)getItem(getMatch().getHud().getSelectedSlot())).setBullets(bullets);
-    }
-
-    @Override
-    public void update(float delta)  {
-        setArmorPoints(delta);
-    }
-
-    @Override
-    public int getBulletsInMagazine() {
-        if (getItem(getMatch().getHud().getSelectedSlot()) instanceof Weapon) {
-            return ((Weapon)getItem(getMatch().getHud().getSelectedSlot())).getBullets();
+    /** Healing roots the player in place; reloading only slows them down. */
+    private void startAction(String activity, float seconds, boolean blocksMovement) {
+        setSelectedBeingUsed(true);
+        if (blocksMovement) {
+            player.blockActions();
         } else {
-            return -1;
+            player.slowDown();
+        }
+        getMatch().getProgress().start(activity, seconds);
+    }
+
+    /** Called by the progress bar when the action completes. */
+    public void finishAction() {
+        setSelectedBeingUsed(false);
+        player.unblockActions();
+        EntityObject selected = getSelectedItem();
+        selected.transformSoldier(player);
+        if (selected instanceof Medkit) {
+            getItems().set(getSelectedIndex(), new Empty(getMatch()));
         }
     }
 
-    @Override
-    public int getBulletsInAmmoBoxes()  {
-        if (getItem(getMatch().getHud().getSelectedSlot()) instanceof Weapon) {
-            int bullets = 0;
-            for (EntityObject item : getItems()) {
-                if (item instanceof Ammo &&
-                        ((Weapon)getItem(getMatch().getHud().getSelectedSlot())).getAmmoType() == item.getClass()) {
-                    bullets += ((Ammo)item).getAmount();
-                }
-            }
-            return bullets;
-        } else {
-            return -1;
-        }
+    /** Called when an action is interrupted, for example by death. */
+    public void cancelAction() {
+        setSelectedBeingUsed(false);
+        player.unblockActions();
     }
 }

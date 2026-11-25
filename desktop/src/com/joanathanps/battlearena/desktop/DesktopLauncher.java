@@ -2,7 +2,7 @@ package com.joanathanps.battlearena.desktop;
 
 import com.badlogic.gdx.backends.lwjgl.LwjglApplication;
 import com.badlogic.gdx.backends.lwjgl.LwjglApplicationConfiguration;
-import com.joanathanps.battlearena.BattleRoyaleArenaLite;
+import com.joanathanps.battlearena.BattleRoyaleLite;
 import com.joanathanps.battlearena.scheme.PlayerSettings;
 
 public class DesktopLauncher {
@@ -12,7 +12,7 @@ public class DesktopLauncher {
         config.height = PlayerSettings.GAME_HEIGHT;
         config.fullscreen = false;
         config.resizable = false;
-        config.title = "Battle Royale Arena Lite";
-        new LwjglApplication(new BattleRoyaleArenaLite(), config);
+        config.title = "Battle Royale Lite";
+        new LwjglApplication(new BattleRoyaleLite(), config);
     }
 }

@@ -1,633 +1,462 @@
 package com.joanathanps.battlearena.events;
 
+import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.Fixture;
 import com.badlogic.gdx.physics.box2d.RayCastCallback;
-import com.badlogic.gdx.utils.Timer;
 import com.joanathanps.battlearena.entities.Enemy;
 import com.joanathanps.battlearena.entities.Lootable;
 import com.joanathanps.battlearena.entities.Soldier;
 import com.joanathanps.battlearena.entities.objects.Empty;
 import com.joanathanps.battlearena.entities.objects.EntityObject;
+import com.joanathanps.battlearena.entities.objects.Inventory;
+import com.joanathanps.battlearena.entities.objects.LootPickup;
+import com.joanathanps.battlearena.entities.objects.Medkit;
 import com.joanathanps.battlearena.entities.objects.equipment.armor.Armor;
 import com.joanathanps.battlearena.entities.objects.equipment.helmets.Helmet;
 import com.joanathanps.battlearena.entities.objects.weapons.Weapon;
-import com.joanathanps.battlearena.entities.objects.weapons.ars.AssaultRifle;
-import com.joanathanps.battlearena.entities.objects.weapons.pistols.Pistol;
 import com.joanathanps.battlearena.entities.objects.weapons.srs.SniperRifle;
 import com.joanathanps.battlearena.entities.tiles.Loot;
 import com.joanathanps.battlearena.forge.WorldBuilder;
 import com.joanathanps.battlearena.scenes.Match;
-import com.joanathanps.battlearena.scheme.MathUtils;
+import com.joanathanps.battlearena.scheme.Difficulty;
 
 import java.util.ArrayList;
 import java.util.Collections;
 
 import static com.joanathanps.battlearena.scheme.PhysicsAdapter.BUILDING_TAG;
 
+/**
+ * Bot brain. Movement and shooting run every frame; decisions (what to do next, who to fight)
+ * run every {@code reactionSeconds}, which is what makes Hard bots react faster than Easy ones.
+ *
+ * <pre>
+ * ROUTING -> SEEKING_LOOT -> LOOTING -> ROUTING
+ *    |            |  stuck
+ *    |            +-------> UNSTICKING -> ROUTING
+ *    +-- any decision tick: enemy in sight -> FIGHTING;  zone closing -> TO_ZONE
+ * </pre>
+ */
 public class AI {
 
-    private Match match;
-    private WorldBuilder worldBuilder;
-    private Soldier soldier;
-    private Vector2 target;
-    private Vector2 altTarget;
-    private ArrayList<Vector2> spatialMemory;
+    private enum State { ROUTING, SEEKING_LOOT, LOOTING, UNSTICKING, TO_ZONE, FIGHTING }
+
+    private static final float MELEE_RANGE = 1.5f;
+    private static final float LOOT_REACH = 1f;
+    private static final float LOOT_SECONDS = 1.5f;
+    private static final float UNSTICK_SECONDS = 3f;
+    private static final float STUCK_SPEED = 0.05f;
+    private static final float STUCK_SECONDS = 0.6f;
+    private static final float LOSE_TARGET_SECONDS = 2f;
+    private static final int MEMORY = 6;
+
+    private final Match match;
+    private final Enemy bot;
+    private final float reactionSeconds;
+    private final float aggression;
+
+    private WorldBuilder world;
     private WaypointNavigator navigator;
 
-    private float decisionInterval;
-    private float aggression;
-    private float decisionTimeCount;
+    private State state = State.ROUTING;
+    private float stateTime;
+    private float decisionTimer;
+    private float stuckTime;
+    private float unseenTime;
 
-    private boolean isLooting;
-    private boolean isGoingByAltPath;
-    private boolean isAltPathTimedOut;
-    private float stamina;
-    private float maxStamina;
-    private float sprintCooldown;
-    private boolean isSprinting;
-
+    private final Vector2 goal = new Vector2();
+    private final ArrayList<Vector2> visited = new ArrayList<>();
+    private Soldier target;
     private int selectedInventorySlot;
-    private Soldier enemyOnTarget;
 
-    private static final float MELEE_CHASE_RANGE = 1.5f;
-    private static final float SPRINT_CHASE_RANGE = 4f;
-
-    private enum State {
-        IDLE, CALCULATING_ROUTE, SEEKING_LOOT, LOOTING, FINDING_PATH, GOING_TO_SAFE_ZONE, CHASING
-    }
-
-    private State state;
-    private State previousState;
-
-    public AI(Match match, Soldier soldier) {
-        state = State.IDLE;
+    public AI(Match match, Enemy bot) {
         this.match = match;
-        this.soldier = soldier;
-        init();
+        this.bot = bot;
+        this.reactionSeconds = match.getDifficulty().getReactionSeconds();
+        this.aggression = match.getDifficulty().getAggressionMultiplier();
+        // Spread decisions over frames so twenty bots do not all think at once.
+        this.decisionTimer = MathUtils.random(reactionSeconds);
     }
 
-    private void init() {
-        spatialMemory = new ArrayList<>();
-        selectedInventorySlot = 0;
-        decisionInterval = match.getDifficulty().getReactionSeconds();
-        aggression = match.getDifficulty().getAggressionMultiplier();
-        
-        // Set stamina based on difficulty
-        switch (match.getDifficulty()) {
-            case EASY:
-                maxStamina = 50f;
-                sprintCooldown = 2f;
-                break;
-            case MEDIUM:
-                maxStamina = 75f;
-                sprintCooldown = 1f;
-                break;
-            case HARD:
-                maxStamina = 100f;
-                sprintCooldown = 0.5f;
-                break;
-        }
-        stamina = maxStamina;
-        isSprinting = false;
+    public void wakeUp(WorldBuilder world) {
+        this.world = world;
+        this.navigator = world.getWaypointNavigator();
+        setState(State.ROUTING);
     }
 
     public void update(float delta) {
+        if (world == null) {
+            return;
+        }
+        stateTime += delta;
+        decisionTimer -= delta;
+        if (decisionTimer <= 0) {
+            decisionTimer = reactionSeconds;
+            decide();
+        }
+
         switch (state) {
-            case CALCULATING_ROUTE:
-                calculateRoute();
+            case ROUTING:
+                pickLootGoal();
                 break;
             case SEEKING_LOOT:
-                seekLoot();
+                moveTo(goal, delta);
+                if (bot.getBody().getPosition().dst(goal) < LOOT_REACH) {
+                    remember(goal);
+                    setState(State.LOOTING);
+                }
                 break;
             case LOOTING:
-                loot();
+                bot.aimAt(null);
+                if (stateTime >= LOOT_SECONDS) {
+                    setState(State.ROUTING);
+                }
                 break;
-            case FINDING_PATH:
-                findPath();
+            case UNSTICKING:
+                bot.seek(goal);
+                if (stateTime >= UNSTICK_SECONDS || bot.getBody().getPosition().dst(goal) < 1f) {
+                    setState(State.ROUTING);
+                }
                 break;
-            case GOING_TO_SAFE_ZONE:
-                goToSafeZone();
+            case TO_ZONE:
+                goal.set(zone().hasNextCircle() ? zone().getNextCenter() : zone().getCenter());
+                moveTo(goal, delta);
+                if (!zone().isOutside(bot.getBody().getPosition()) && !zone().isOutsideNext(bot.getBody().getPosition())) {
+                    setState(State.ROUTING);
+                }
                 break;
-            case CHASING:
-                chase();
+            case FIGHTING:
+                fight(delta);
                 break;
         }
+    }
 
-        decisionTimeCount += delta;
-        if (decisionTimeCount >= decisionInterval) {
-            decisionTimeCount = 0;
-            checkAvailableWeapons();
-            checkZoneTime();
-            if (state != State.CHASING && state != State.GOING_TO_SAFE_ZONE) {
-                checkSoldiersAround();
+    /** Runs every reaction tick. */
+    private void decide() {
+        selectBestWeapon();
+        Vector2 position = bot.getBody().getPosition();
+
+        // Standing in the zone always wins: leave first, fight later.
+        if (zone().isOutside(position)) {
+            setState(State.TO_ZONE);
+            return;
+        }
+        if (state != State.FIGHTING) {
+            Soldier seen = findTarget();
+            if (seen != null) {
+                target = seen;
+                unseenTime = 0;
+                setState(State.FIGHTING);
+                return;
             }
         }
+        // Head in early when the next circle excludes us and the shrink is near.
+        if (state != State.FIGHTING && state != State.TO_ZONE && zone().isOutsideNext(position)
+                && zone().getSecondsUntilShrink() < 15f) {
+            setState(State.TO_ZONE);
+        }
     }
 
-    public void wakeUp(WorldBuilder worldBuilder) {
-        this.worldBuilder = worldBuilder;
-        this.navigator = worldBuilder.getWaypointNavigator();
-        setState(State.CALCULATING_ROUTE);
-    }
-
-    private void calculateRoute() {
-        ArrayList<Lootable> loot = worldBuilder.getAllLoot();
-        double nearestLootDistance = 0;
-        Lootable nearestLoot = null;
-
-        for (int i = 0; i < loot.size(); i++) {
-            // Skip loot already in spatial memory (recently visited)
-            if (spatialMemory.contains(loot.get(i).getBody().getPosition())) {
+    private void pickLootGoal() {
+        Vector2 position = bot.getBody().getPosition();
+        Lootable nearest = null;
+        float nearestDistance = Float.MAX_VALUE;
+        for (Lootable loot : world.getAllLoot()) {
+            Vector2 lootPosition = loot.getBody().getPosition();
+            if (isRemembered(lootPosition) || !hasItems(loot) || zone().isOutsideNext(lootPosition)) {
                 continue;
             }
-            // Skip empty loot containers — no point walking to them
-            if (loot.get(i) instanceof Loot && !((Loot) loot.get(i)).hasItems()) {
-                continue;
-            }
-            // Skip dead enemies with nothing left on them
-            if (loot.get(i) instanceof Enemy) {
-                Enemy deadEnemy = (Enemy) loot.get(i);
-                if (!com.joanathanps.battlearena.entities.objects.LootPickup.hasItems(
-                        deadEnemy.getInventory().getItems())) {
-                    continue;
-                }
-            }
-            double distanceToLoot = MathUtils.distance(
-                    soldier.getBody().getPosition(), loot.get(i).getBody().getPosition());
-
-            if (nearestLoot == null || distanceToLoot < nearestLootDistance) {
-                nearestLoot = loot.get(i);
-                nearestLootDistance = distanceToLoot;
+            float distance = position.dst(lootPosition);
+            if (distance < nearestDistance) {
+                nearest = loot;
+                nearestDistance = distance;
             }
         }
-
-        if (nearestLoot != null) {
-            target = nearestLoot.getBody().getPosition();
-            // Add to spatial memory if we've been close enough to consider it visited
-            if (nearestLootDistance < 3) {
-                spatialMemory.add(nearestLoot.getBody().getPosition());
-                if (spatialMemory.size() > 5) {
-                    spatialMemory.remove(0);
-                }
-            }
-        }
-        setState(State.SEEKING_LOOT);
-    }
-
-    private void seekLoot() {
-        ((Enemy)soldier).setPursuit(false);
-        if (MathUtils.distance(soldier.getBody().getPosition(), target) < 1) {
-            spatialMemory.add(target);
-            soldier.getBody().getFixtureList().first().setSensor(false);
-            setState(State.LOOTING);
-        } else {
-            // Use the waypoint navigator so the bot routes around buildings
-            // rather than pushing straight through the wall toward loot.
-            Vector2 nextStep = (navigator != null)
-                    ? navigator.getNextWaypoint(soldier.getBody().getPosition(), target)
-                    : target;
-
-            if (((SteeringBehavior)soldier).seek(nextStep)) {
-                if (soldier.getBody().getLinearVelocity().x == 0 && soldier.getBody().getLinearVelocity().y == 0) {
-                    if (!match.getCamera().frustum.pointInFrustum(
-                            soldier.getBody().getPosition().x, soldier.getBody().getPosition().y, 0
-                    )) {
-                        soldier.getBody().getFixtureList().first().setSensor(true);
-                        ((Enemy)soldier).setVisible(false);
-                        Timer.schedule(new Timer.Task(){
-                            @Override
-                            public void run() {
-                                ((Enemy)soldier).setVisible(true);
-                                soldier.getBody().getFixtureList().first().setSensor(false);
-                            }
-                        }, 1);
-                    } else {
-                        setState(State.FINDING_PATH);
-                    }
-                }
-            }
-        }
-    }
-
-    private void loot() {
-        if (!isLooting) {
-            isLooting = true;
-            Timer.schedule(new Timer.Task(){
-                @Override
-                public void run() {
-                    isLooting = false;
-                    setState(State.CALCULATING_ROUTE);
-                }
-            }, 3);
-        }
-    }
-
-    private void findPath() {
-        ((Enemy)soldier).setPursuit(false);
-        if (!isGoingByAltPath) {
-            // Cast several rays in a fan ahead of the bot and pick the
-            // clearest direction — much smarter than a random offset.
-            altTarget = pickClearDirection();
-            isGoingByAltPath = true;
-            Timer.schedule(new Timer.Task(){
-                @Override
-                public void run() {
-                    isAltPathTimedOut = true;
-                }
-            }, 4);
-        } else {
-            if (MathUtils.distance(soldier.getBody().getPosition(), altTarget) < 1.5 || isAltPathTimedOut) {
-                setState(State.CALCULATING_ROUTE);
-                isGoingByAltPath = false;
-                isAltPathTimedOut = false;
-            } else {
-                ((SteeringBehavior)soldier).seek(altTarget);
-            }
-        }
-    }
-
-    /**
-     * Fans out rays from the bot's current position in 8 cardinal/diagonal
-     * directions and returns a point 6 units away in the direction with the
-     * longest clear path (no building wall hit).
-     *
-     * <p>If every direction is blocked (unlikely in an open arena), falls
-     * back to a short random offset as before.
-     */
-    private Vector2 pickClearDirection() {
-        Vector2 pos = soldier.getBody().getPosition();
-        float probeLen = 6f;
-        float bestLen = -1f;
-        float bestAngle = 0f;
-
-        // 8-direction fan (every 45°)
-        for (int i = 0; i < 8; i++) {
-            float angle = (float)(i * Math.PI / 4);
-            float dx = (float) Math.cos(angle);
-            float dy = (float) Math.sin(angle);
-            Vector2 probe = new Vector2(pos.x + dx * probeLen, pos.y + dy * probeLen);
-
-            // Measure how far we can go in this direction before hitting a building
-            final float[] clearDist = {probeLen};
-            if (navigator != null) {
-                match.getWorld().rayCast(new RayCastCallback() {
-                    @Override
-                    public float reportRayFixture(Fixture fixture, Vector2 point,
-                                                  Vector2 normal, float fraction) {
-                        if ((fixture.getFilterData().categoryBits & BUILDING_TAG) != 0) {
-                            clearDist[0] = fraction * probeLen;
-                            return fraction; // keep closest hit
-                        }
-                        return -1;
-                    }
-                }, pos, probe);
-            }
-
-            if (clearDist[0] > bestLen) {
-                bestLen = clearDist[0];
-                bestAngle = angle;
-            }
-        }
-
-        if (bestLen > 0.5f) {
-            return new Vector2(
-                    pos.x + (float) Math.cos(bestAngle) * bestLen * 0.9f,
-                    pos.y + (float) Math.sin(bestAngle) * bestLen * 0.9f
-            );
-        }
-
-        // Total fallback — short random offset (original behaviour)
-        return new Vector2(
-                pos.x + MathUtils.randomRange(-10, 10),
-                pos.y + MathUtils.randomRange(-10, 10)
-        );
-    }
-
-    private void goToSafeZone() {
-        ((Enemy)soldier).setPursuit(false);
-        target = new Vector2(41 + match.getSafeZoneController()
-                .getSafezoneOffsets()[match.getSafeZoneController().getCurrentOffset()].x,
-                41 + match.getSafeZoneController()
-                        .getSafezoneOffsets()[match.getSafeZoneController().getCurrentOffset()].y);
-
-        // Route around buildings so the bot doesn't get blocked by a wall
-        // while urgently running to the safe zone.
-        Vector2 nextStep = (navigator != null)
-                ? navigator.getNextWaypoint(soldier.getBody().getPosition(), target)
-                : target;
-        ((SteeringBehavior)soldier).seek(nextStep);
-
-        if (!match.getSafeZoneController().soldierIsInDangerZone(soldier)) {
+        if (nearest != null) {
+            goal.set(nearest.getBody().getPosition());
             setState(State.SEEKING_LOOT);
+        } else {
+            // Nothing left worth looting: wander toward the safe zone.
+            goal.set(zone().hasNextCircle() ? zone().getNextCenter() : zone().getCenter());
+            goal.add(MathUtils.random(-4f, 4f), MathUtils.random(-4f, 4f));
+            setState(State.UNSTICKING);
         }
     }
 
-    private void chase() {
-        float distanceToTarget = (float) MathUtils.distance(soldier.getBody().getPosition(), enemyOnTarget.getBody().getPosition());
-        boolean canSprint = isSprinting && distanceToTarget <= SPRINT_CHASE_RANGE;
-        ((Enemy)soldier).setPursuit(canSprint);
-        checkAvailableWeapons();
-        boolean armed = hasWeapon(soldier);
+    private static boolean hasItems(Lootable loot) {
+        if (loot instanceof Loot) {
+            return ((Loot) loot).hasItems();
+        }
+        if (loot instanceof Enemy) {
+            return LootPickup.hasItems(((Enemy) loot).getInventory().getItems());
+        }
+        return false;
+    }
 
-        if (enemyOnTarget.isDead()) {
-            setState(State.CALCULATING_ROUTE);
+    private void fight(float delta) {
+        if (target == null || target.isDead()) {
+            target = null;
+            bot.aimAt(null);
+            setState(State.ROUTING);
+            return;
+        }
+        Vector2 position = bot.getBody().getPosition();
+        Vector2 enemy = target.getBody().getPosition();
+        float distance = position.dst(enemy);
+        boolean visible = hasLineOfSight(position, enemy);
+
+        unseenTime = visible ? 0 : unseenTime + delta;
+        if (unseenTime > LOSE_TARGET_SECONDS || distance > acquisitionRange() * 1.6f) {
+            target = null;
+            bot.aimAt(null);
+            setState(State.ROUTING);
             return;
         }
 
-        Vector2 enemyPos = enemyOnTarget.getBody().getPosition();
-
-        if (armed) {
-            // Armed: close in and shoot
-            if (distanceToTarget > 4) {
-                if (distanceToTarget < 7 * aggression) {
-                    // Route around walls to reach the enemy position
-                    Vector2 nextStep = (navigator != null)
-                            ? navigator.getNextWaypoint(soldier.getBody().getPosition(), enemyPos)
-                            : enemyPos;
-                    ((SteeringBehavior)soldier).seek(nextStep);
-                } else {
-                    setState(State.CALCULATING_ROUTE);
-                }
+        bot.aimAt(enemy);
+        Inventory inventory = bot.getInventory();
+        if (inventory.getSelectedItem() instanceof Weapon) {
+            float preferred = inventory.getSelectedItem() instanceof SniperRifle ? 9f : 4f;
+            bot.setPursuit(distance > preferred + 3f && match.getDifficulty() != Difficulty.EASY);
+            if (distance > preferred || !visible) {
+                moveTo(enemy, delta);
             }
-            if (soldier.getInventory().getBulletsInMagazine() < 1) {
-                soldier.getInventory().reloadSelectedWeapon();
-            } else {
-                ((Weapon)soldier.getInventory().getItem(selectedInventorySlot)).shoot(soldier);
+            if (visible) {
+                inventory.useSelectedItem(bot);
             }
         } else {
-            // Unarmed: only chase if target is within melee range, then punch
-            if (distanceToTarget <= MELEE_CHASE_RANGE) {
-                ((SteeringBehavior)soldier).seek(enemyPos);
-                soldier.punch();
-            } else if (distanceToTarget < 3f) {
-                // Close but not melee range yet — keep closing in (no wall routing needed at this range)
-                ((SteeringBehavior)soldier).seek(enemyPos);
-            } else {
-                // Too far for unarmed engagement — go loot instead
-                setState(State.CALCULATING_ROUTE);
-            }
-        }
-
-        // Stamina/sprint management
-        if (isSprinting) {
-            stamina -= 0.1f * sprintCooldown;
-            if (stamina <= 0) {
-                isSprinting = false;
-                stamina = 0;
-            }
-        } else {
-            stamina = Math.min(maxStamina, stamina + 0.05f);
-        }
-    }
-
-    private void setState(State state) {
-        previousState = this.state;
-        this.state = state;
-    }
-
-    public void searchForItems(ArrayList<EntityObject> items) {
-        Collections.sort(items);
-        for (int i = 0; i < items.size(); i++) {
-            exchangeItem(items, i);
-        }
-        // Print items of this enemy
-//        System.out.println(" = = = = = = = = = = = = =");
-//        for (EntityObject item : soldier.getInventory().getItems()) {
-//            System.out.println(item.getName());
-//        }
-//        System.out.println("- - -");
-//        for (EntityObject item : soldier.getInventory().getEquipmentItems()) {
-//            System.out.println(item.getName());
-//        }
-    }
-
-    private void exchangeItem(ArrayList<EntityObject> items, int index) {
-        if (!hasItem(items.get(index))) {
-            if (items.get(index) instanceof Helmet) {
-                if (!hasHelmet()) {
-                    if (soldier.getInventory().getEquipmentItems().get(0).getClass() == Empty.class) {
-                        soldier.getInventory().getEquipmentItems().set(0, items.get(index));
-                        items.set(index, new Empty(match));
-                    }
-                } else if (isItemWorthSwapping(items.get(index))) {
-                    EntityObject escrow = soldier.getInventory().getEquipmentItems().get(0);
-                    soldier.getInventory().getEquipmentItems().set(0, items.get(index));
-                    items.set(index, escrow);
-                }
-            } else if (items.get(index) instanceof Armor) {
-                if (!hasArmor()) {
-                    if (soldier.getInventory().getEquipmentItems().get(1).getClass() == Empty.class) {
-                        soldier.getInventory().getEquipmentItems().set(1, items.get(index));
-                        items.set(index, new Empty(match));
-                    }
-                } else if (isItemWorthSwapping(items.get(index))) {
-                    EntityObject escrow = soldier.getInventory().getEquipmentItems().get(1);
-                    soldier.getInventory().getEquipmentItems().set(1, items.get(index));
-                    items.set(index, escrow);
+            bot.setPursuit(false);
+            if (distance < 3f) {
+                bot.seek(enemy);
+                if (distance <= MELEE_RANGE) {
+                    bot.punch();
                 }
             } else {
-                if (!isInventoryFull()) {
-                    if (!(items.get(index) instanceof Weapon) || !hasWeapon(soldier)) {
-                        for (int j = 0; j < soldier.getInventory().getItems().size(); j++) {
-                            if (soldier.getInventory().getItems().get(j).getClass() == Empty.class) {
-                                soldier.getInventory().getItems().set(j, items.get(index));
-                                items.set(index, new Empty(match));
-                                readyItem(soldier.getInventory().getItems().get(j));
-                            }
-                        }
-                    }
-                } else {
-                    for (int i = 0; i < soldier.getInventory().getItems().size(); i++) {
-                        if (isItemWorthSwapping(items.get(index), soldier.getInventory().getItems().get(i))) {
-                            EntityObject escrow = soldier.getInventory().getItems().get(i);
-                            soldier.getInventory().getItems().set(i, items.get(index));
-                            items.set(index, escrow);
-                            readyItem(soldier.getInventory().getItems().get(i));
-                        }
-                    }
-                }
+                target = null;
+                bot.aimAt(null);
+                setState(State.ROUTING);
             }
         }
     }
 
-    private void readyItem(EntityObject item) {
-        if (item instanceof Weapon) {
-            ((Weapon) item).fillMagazine();
-        }
-    }
+    /** Walks toward a point, routing around buildings, and switches to UNSTICKING when blocked. */
+    private void moveTo(Vector2 destination, float delta) {
+        Vector2 position = bot.getBody().getPosition();
+        Vector2 step = navigator != null ? navigator.getNextWaypoint(position, destination) : destination;
+        bot.seek(step);
 
-    private boolean hasItem(EntityObject lootItem) {
-        if (lootItem instanceof Armor ||
-                lootItem instanceof Helmet) {
-            for (EntityObject item : soldier.getInventory().getEquipmentItems()) {
-                if (lootItem.getClass() == item.getClass()) {
-                    return true;
-                }
-            }
+        if (bot.getBody().getLinearVelocity().len2() < STUCK_SPEED * STUCK_SPEED) {
+            stuckTime += delta;
         } else {
-            for (EntityObject item : soldier.getInventory().getItems()) {
-                if (lootItem.getClass() == item.getClass()) {
-                    return true;
-                }
-            }
+            stuckTime = 0;
         }
-        return false;
-    }
-
-    private boolean isItemWorthSwapping(EntityObject lootItem) {
-        if (lootItem instanceof Helmet) {
-            return lootItem.getRarity() < soldier.getInventory().getEquipmentItems().get(0).getRarity();
-        } else if (lootItem instanceof Armor) {
-            return lootItem.getRarity() < soldier.getInventory().getEquipmentItems().get(1).getRarity();
-        }
-        return false;
-    }
-
-    private boolean isItemWorthSwapping(EntityObject lootItem, EntityObject inventoryItem) {
-         if (lootItem instanceof Weapon && inventoryItem instanceof Weapon) {
-             return lootItem.getRarity() < inventoryItem.getRarity();
-        }
-        return false;
-    }
-
-    private boolean isInventoryFull() {
-        int capacity = soldier.getInventory().getItems().size();
-
-        for (EntityObject item : soldier.getInventory().getItems()) {
-            if (item.getClass() != Empty.class) {
-                capacity--;
-            }
-        }
-
-        return capacity == 1;
-    }
-
-    private boolean hasHelmet() {
-        return soldier.getInventory().getEquipmentItems().get(0).getClass() != Empty.class;
-    }
-
-    private boolean hasArmor() {
-        return soldier.getInventory().getEquipmentItems().get(1).getClass() != Empty.class;
-    }
-
-    public int getSelectedInventorySlot() {
-        return selectedInventorySlot;
-    }
-
-    private void checkAvailableWeapons() {
-        ArrayList<EntityObject> items = soldier.getInventory().getItems();
-        for (int i = 0; i < soldier.getInventory().getItems().size(); i++) {
-            if (items.get(i) instanceof SniperRifle) {
-                selectedInventorySlot = i;
-                return;
-            }
-        }
-        for (int i = 0; i < soldier.getInventory().getItems().size(); i++) {
-             if (items.get(i) instanceof AssaultRifle) {
-                 selectedInventorySlot = i;
-                 return;
-            }
-        }
-        for (int i = 0; i < soldier.getInventory().getItems().size(); i++) {
-            if (items.get(i) instanceof Pistol) {
-                selectedInventorySlot = i;
-                return;
+        if (stuckTime > STUCK_SECONDS && state != State.FIGHTING) {
+            stuckTime = 0;
+            boolean onScreen = match.getCamera().frustum.pointInFrustum(position.x, position.y, 0);
+            if (!onScreen) {
+                bot.ghost(1f);
+            } else {
+                goal.set(pickClearDirection());
+                setState(State.UNSTICKING);
             }
         }
     }
 
-    private void checkZoneTime() {
-        if (match.getSafeZoneController().getCurrentEvent() >= 2 &&
-                match.getSafeZoneController().soldierIsInDangerZone(soldier)) {
-            setState(State.GOING_TO_SAFE_ZONE);
-        } else if (match.getSafeZoneController().getSecondsToNextEvent() <
-                match.getSafeZoneController().getSECONDS_NEXT() / 2 &&
-                !match.getSafeZoneController().isInZoneEvent()) {
-            setState(State.GOING_TO_SAFE_ZONE);
+    /** Casts eight rays and returns a point along the longest clear one. */
+    private Vector2 pickClearDirection() {
+        Vector2 position = bot.getBody().getPosition();
+        float probe = 6f;
+        float bestLength = -1f;
+        float bestAngle = 0f;
+        Vector2 end = new Vector2();
+        for (int i = 0; i < 8; i++) {
+            float angle = i * MathUtils.PI / 4;
+            end.set(position.x + MathUtils.cos(angle) * probe, position.y + MathUtils.sin(angle) * probe);
+            float clear = clearDistance(position, end, probe);
+            if (clear > bestLength) {
+                bestLength = clear;
+                bestAngle = angle;
+            }
         }
+        if (bestLength < 0.5f) {
+            return new Vector2(position.x + MathUtils.random(-6f, 6f), position.y + MathUtils.random(-6f, 6f));
+        }
+        return new Vector2(position.x + MathUtils.cos(bestAngle) * bestLength * 0.9f,
+                position.y + MathUtils.sin(bestAngle) * bestLength * 0.9f);
     }
 
-    private void checkSoldiersAround() {
-        Soldier nearestVisible = null;
-        double nearestVisibleDistance = Float.MAX_VALUE;
-        Soldier nearestMeleeTarget = null;
-        double nearestMeleeDistance = Float.MAX_VALUE;
-        float acquisitionRange = 5 * aggression;
-
-        Vector2 position = soldier.getBody().getPosition();
-        for (Soldier combatant : worldBuilder.getSoldiers()) {
-            if (combatant == soldier || combatant.isDead()) {
-                continue;
-            }
-            double distanceToCombatant = MathUtils.distance(position, combatant.getBody().getPosition());
-
-            // Only engage targets that are within acquisition range AND visible (no wall between)
-            if (distanceToCombatant > acquisitionRange) {
-                continue;
-            }
-            if (!hasLineOfSight(position, combatant.getBody().getPosition())) {
-                continue;
-            }
-
-            // Track nearest within melee range separately for unarmed bots
-            if (distanceToCombatant <= MELEE_CHASE_RANGE && distanceToCombatant < nearestMeleeDistance) {
-                nearestMeleeTarget = combatant;
-                nearestMeleeDistance = distanceToCombatant;
-            }
-
-            // Track nearest visible target for armed engagement
-            if (distanceToCombatant < nearestVisibleDistance) {
-                nearestVisible = combatant;
-                nearestVisibleDistance = distanceToCombatant;
-            }
-        }
-
-        boolean selfArmed = hasWeapon(soldier);
-
-        if (selfArmed && nearestVisible != null) {
-            // Armed bot with a visible target → engage
-            enemyOnTarget = nearestVisible;
-            setState(State.CHASING);
-        } else if (!selfArmed && nearestMeleeTarget != null) {
-            // Unarmed bot and someone is already within melee range → punch them
-            enemyOnTarget = nearestMeleeTarget;
-            setState(State.CHASING);
-        } else {
-            // No immediate threat / no weapon → keep looting
-            setState(State.CALCULATING_ROUTE);
-        }
-    }
-
-    /**
-     * Returns true if there is no building fixture blocking the straight line
-     * from {@code from} to {@code to} in the Box2D world.
-     */
-    private boolean hasLineOfSight(Vector2 from, Vector2 to) {
-        // Tiny epsilon guard — same position counts as visible
-        if (from.dst(to) < 0.01f) return true;
-
-        final boolean[] blocked = {false};
+    private float clearDistance(Vector2 from, Vector2 to, final float length) {
+        final float[] clear = {length};
         match.getWorld().rayCast(new RayCastCallback() {
             @Override
             public float reportRayFixture(Fixture fixture, Vector2 point, Vector2 normal, float fraction) {
-                if ((fixture.getFilterData().categoryBits & BUILDING_TAG) != 0) {
-                    blocked[0] = true;
-                    return 0; // stop ray immediately
+                if (fixture.isSensor() && (fixture.getFilterData().categoryBits & BUILDING_TAG) == 0) {
+                    return -1;
                 }
-                return -1; // ignore other fixtures, continue ray
+                if (fixture.getBody() == bot.getBody()) {
+                    return -1;
+                }
+                clear[0] = fraction * length;
+                return fraction;
             }
         }, from, to);
-
-        return !blocked[0];
+        return clear[0];
     }
 
-    private boolean hasWeapon(Soldier s) {
-        for (EntityObject item : s.getInventory().getItems()) {
-            if (item instanceof Weapon) {
+    private float acquisitionRange() {
+        boolean sniper = bot.getInventory().getSelectedItem() instanceof SniperRifle;
+        return (sniper ? 9f : 5f) * aggression;
+    }
+
+    /** Nearest living soldier in range and in sight. Unarmed bots only notice someone in arm's reach. */
+    private Soldier findTarget() {
+        boolean armed = bot.getInventory().hasWeapon();
+        float range = armed ? acquisitionRange() : MELEE_RANGE;
+        Vector2 position = bot.getBody().getPosition();
+        Soldier best = null;
+        float bestDistance = range;
+        for (Soldier other : world.getSoldiers()) {
+            if (other == bot || other.isDead()) {
+                continue;
+            }
+            float distance = position.dst(other.getBody().getPosition());
+            if (distance <= bestDistance && hasLineOfSight(position, other.getBody().getPosition())) {
+                best = other;
+                bestDistance = distance;
+            }
+        }
+        return best;
+    }
+
+    private boolean hasLineOfSight(Vector2 from, Vector2 to) {
+        return navigator == null || navigator.hasLineOfSight(from, to);
+    }
+
+    private void selectBestWeapon() {
+        ArrayList<EntityObject> items = bot.getInventory().getItems();
+        int best = -1;
+        for (int i = 0; i < items.size(); i++) {
+            if (items.get(i) instanceof Weapon && (best < 0 || items.get(i).getTier() > items.get(best).getTier())) {
+                best = i;
+            }
+        }
+        if (best >= 0) {
+            selectedInventorySlot = best;
+        }
+    }
+
+    /** Called when the bot walks onto a loot pile or a corpse. Takes what improves its kit. */
+    public void searchForItems(ArrayList<EntityObject> pile) {
+        Collections.sort(pile);
+        Inventory inventory = bot.getInventory();
+        for (int i = 0; i < pile.size(); i++) {
+            EntityObject item = pile.get(i);
+            if (item instanceof Empty) {
+                continue;
+            }
+            if (item instanceof Helmet) {
+                pile.set(i, swapEquipment(inventory, Inventory.HELMET, item));
+            } else if (item instanceof Armor) {
+                pile.set(i, swapEquipment(inventory, Inventory.VEST, item));
+            } else if (item instanceof Weapon) {
+                pile.set(i, takeWeapon(inventory, (Weapon) item));
+            } else if (item instanceof Medkit) {
+                int free = freeSlot(inventory);
+                if (free >= 0) {
+                    inventory.getItems().set(free, item);
+                    pile.set(i, new Empty(match));
+                }
+            }
+        }
+    }
+
+    /** Equips the item if it has more armor left than what is worn; returns what goes back on the pile. */
+    private EntityObject swapEquipment(Inventory inventory, int slot, EntityObject item) {
+        EntityObject worn = inventory.getEquipmentItems().get(slot);
+        if (armorPoints(item) > armorPoints(worn)) {
+            inventory.getEquipmentItems().set(slot, item);
+            return worn;
+        }
+        return item;
+    }
+
+    private static int armorPoints(EntityObject item) {
+        if (item instanceof Helmet) {
+            return ((Helmet) item).getArmorPoints();
+        }
+        if (item instanceof Armor) {
+            return ((Armor) item).getArmorPoints();
+        }
+        return 0;
+    }
+
+    /** Bots carry one weapon of each kind and replace the weakest when they find better. */
+    private EntityObject takeWeapon(Inventory inventory, Weapon weapon) {
+        for (EntityObject held : inventory.getItems()) {
+            if (held.getClass() == weapon.getClass()) {
+                return weapon;
+            }
+        }
+        weapon.fillMagazine();
+        int free = freeSlot(inventory);
+        if (free >= 0) {
+            inventory.getItems().set(free, weapon);
+            return new Empty(match);
+        }
+        int weakest = -1;
+        for (int i = 0; i < inventory.getItems().size(); i++) {
+            EntityObject held = inventory.getItems().get(i);
+            if (held instanceof Weapon && (weakest < 0 || held.getTier() < inventory.getItems().get(weakest).getTier())) {
+                weakest = i;
+            }
+        }
+        if (weakest >= 0 && inventory.getItems().get(weakest).getTier() < weapon.getTier()) {
+            EntityObject dropped = inventory.getItems().get(weakest);
+            inventory.getItems().set(weakest, weapon);
+            return dropped;
+        }
+        return weapon;
+    }
+
+    private static int freeSlot(Inventory inventory) {
+        for (int i = 0; i < inventory.getItems().size(); i++) {
+            if (inventory.getItems().get(i) instanceof Empty) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private void remember(Vector2 position) {
+        visited.add(new Vector2(position));
+        if (visited.size() > MEMORY) {
+            visited.remove(0);
+        }
+    }
+
+    private boolean isRemembered(Vector2 position) {
+        for (Vector2 seen : visited) {
+            if (seen.epsilonEquals(position, 0.01f)) {
                 return true;
             }
         }
         return false;
+    }
+
+    private SafeZoneController zone() {
+        return match.getSafeZoneController();
+    }
+
+    private void setState(State next) {
+        state = next;
+        stateTime = 0;
+        stuckTime = 0;
+        if (next != State.FIGHTING) {
+            bot.setPursuit(false);
+        }
+    }
+
+    public int getSelectedInventorySlot() {
+        return selectedInventorySlot;
     }
 }

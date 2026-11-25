@@ -9,7 +9,9 @@ import com.badlogic.gdx.graphics.g2d.TextureAtlas;
 import com.badlogic.gdx.maps.tiled.TiledMap;
 import com.badlogic.gdx.maps.tiled.TmxMapLoader;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
+import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.Disposable;
+import com.badlogic.gdx.utils.ObjectMap;
 
 public final class ResourceHandler implements Disposable {
 
@@ -189,28 +191,38 @@ public final class ResourceHandler implements Disposable {
         FontPath(String path) { this.path = path; }
     }
 
-    private AssetManager assetManager;
+    private final AssetManager assetManager;
+    private final ObjectMap<SkinPaths, Skin> skins = new ObjectMap<SkinPaths, Skin>();
+    private final Array<TextureAtlas> skinAtlases = new Array<TextureAtlas>();
 
+    /** Loads the menu assets right away; match assets load on the first call to {@link #loadMatchResources()}. */
     public ResourceHandler() {
         assetManager = new AssetManager();
+        loadMainMenuResources();
     }
 
-    public void loadMainMenuResources() {
+    private void loadMainMenuResources() {
         assetManager.load(TexturePath.MENU_P0.path, Texture.class);
         assetManager.load(TexturePath.MENU_P1.path, Texture.class);
         assetManager.load(TexturePath.MENU_P2.path, Texture.class);
         assetManager.load(TexturePath.MENU_P3.path, Texture.class);
         assetManager.load(TexturePath.MENU_LOGO.path, Texture.class);
         assetManager.load(PixmapPath.MENU_CURSOR.path, Pixmap.class);
+        assetManager.load(PixmapPath.MATCH_CURSOR.path, Pixmap.class);
         assetManager.load(TexturePath.LOADING_SCREEN.path, Texture.class);
         assetManager.load(TexturePath.GAME_ICON.path, Texture.class);
         assetManager.load(TexturePath.VIGNETTE.path, Texture.class);
         assetManager.finishLoading();
     }
 
+    public boolean isMatchLoaded() {
+        return assetManager.isLoaded(TiledMapPath.TILEMAP.path, TiledMap.class);
+    }
+
     public void loadMatchResources() {
-        assetManager.load(PixmapPath.MATCH_CURSOR.path, Pixmap.class);
-        assetManager.load(PixmapPath.MENU_CURSOR.path, Pixmap.class);
+        if (isMatchLoaded()) {
+            return;
+        }
         assetManager.load(TextureAtlasPath.SOLDIER_ATLAS.path, TextureAtlas.class);
         assetManager.load(TextureAtlasPath.SOLDIER_MEDKIT_ATLAS.path, TextureAtlas.class);
         assetManager.load(TextureAtlasPath.SOLDIER_MILITARY_VEST_ATLAS.path, TextureAtlas.class);
@@ -343,11 +355,18 @@ public final class ResourceHandler implements Disposable {
         return assetManager.get(textureAtlas.path, TextureAtlas.class);
     }
 
+    /** Skins are built once and shared. Do not dispose them; the fonts inside belong to {@link FontGenerator}. */
     public Skin getSkin(SkinPaths skinPaths) {
-        Skin skin = new Skin();
-        skin.add(skinPaths.fontName, FontGenerator.generate(skinPaths.fontPath, skinPaths.fontSize, false));
-        skin.addRegions(new TextureAtlas(Gdx.files.internal(skinPaths.atlasPath.path)));
-        skin.load(Gdx.files.internal(skinPaths.path));
+        Skin skin = skins.get(skinPaths);
+        if (skin == null) {
+            skin = new Skin();
+            skin.add(skinPaths.fontName, FontGenerator.generate(skinPaths.fontPath, skinPaths.fontSize, false));
+            TextureAtlas atlas = new TextureAtlas(Gdx.files.internal(skinPaths.atlasPath.path));
+            skinAtlases.add(atlas);
+            skin.addRegions(atlas);
+            skin.load(Gdx.files.internal(skinPaths.path));
+            skins.put(skinPaths, skin);
+        }
         return skin;
     }
 
@@ -361,6 +380,11 @@ public final class ResourceHandler implements Disposable {
 
     @Override
     public void dispose() {
+        for (TextureAtlas atlas : skinAtlases) {
+            atlas.dispose();
+        }
+        skinAtlases.clear();
+        skins.clear();
         assetManager.dispose();
     }
 }

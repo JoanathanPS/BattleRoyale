@@ -5,48 +5,40 @@ import com.joanathanps.battlearena.entities.Soldier;
 import com.joanathanps.battlearena.entities.objects.weapons.Weapon;
 import com.joanathanps.battlearena.scenes.Match;
 
-public class NPCInventory extends Inventory{
+/** Bots pick their slot through their AI and reload instantly. */
+public class NPCInventory extends Inventory {
 
-    public NPCInventory(Match match, Soldier soldier) {
-        super(match, soldier);
+    private final Enemy enemy;
+
+    public NPCInventory(Match match, Enemy enemy) {
+        super(match, enemy);
+        this.enemy = enemy;
+    }
+
+    @Override
+    public int getSelectedIndex() {
+        return enemy.getAi().getSelectedInventorySlot();
     }
 
     @Override
     public void useSelectedItem(Soldier soldier) {
-
-    }
-
-    @Override
-    public void reloadSelectedWeapon() {
-        transferAmmo(0);
-    }
-
-    @Override
-    public void applyAction() {
-
-    }
-
-    @Override
-    public void transferAmmo(int bulletsInWeapon) {
-        ((Weapon)getItem(((Enemy)getSoldier()).getAi().getSelectedInventorySlot())).fillMagazine();
-    }
-
-    @Override
-    public void update(float delta) {
-        setArmorPoints(delta);
-    }
-
-    @Override
-    public int getBulletsInMagazine() {
-        if (getItem(((Enemy)getSoldier()).getAi().getSelectedInventorySlot()) instanceof Weapon) {
-            return ((Weapon)getItem(((Enemy)getSoldier()).getAi().getSelectedInventorySlot())).getBullets();
+        EntityObject selected = getSelectedItem();
+        if (selected instanceof Weapon) {
+            if (((Weapon) selected).getBullets() == 0) {
+                reloadSelectedWeapon();
+            } else {
+                ((Weapon) selected).shoot(soldier);
+            }
         } else {
-            return -1;
+            soldier.punch();
         }
     }
 
     @Override
-    public int getBulletsInAmmoBoxes() {
-        return -1;
+    public void reloadSelectedWeapon() {
+        EntityObject selected = getSelectedItem();
+        if (selected instanceof Weapon) {
+            ((Weapon) selected).fillMagazine();
+        }
     }
 }

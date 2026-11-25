@@ -1,123 +1,91 @@
 package com.joanathanps.battlearena.gui;
 
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Input;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
-import com.badlogic.gdx.graphics.g2d.TextureAtlas;
-import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
-import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
-import com.badlogic.gdx.scenes.scene2d.ui.Window;
-import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
+import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
-import com.joanathanps.battlearena.BattleRoyaleArenaLite;
+import com.joanathanps.battlearena.BattleRoyaleLite;
 import com.joanathanps.battlearena.database.MatchResult;
 import com.joanathanps.battlearena.database.MatchResultsRepository;
-import com.joanathanps.battlearena.scheme.SystemProps;
 import com.joanathanps.battlearena.graphics.FontGenerator;
 import com.joanathanps.battlearena.graphics.ResourceHandler;
 import com.joanathanps.battlearena.scenes.MainMenu;
+import com.joanathanps.battlearena.scheme.PlayerSettings;
 
 import java.util.List;
 
-import static com.joanathanps.battlearena.scheme.PhysicsAdapter.pCenter;
 import static com.joanathanps.battlearena.scheme.PlayerSettings.GAME_HEIGHT;
 import static com.joanathanps.battlearena.scheme.PlayerSettings.GAME_WIDTH;
 
+/** Top ten scores from the online leaderboard. Your own rows are highlighted. */
 public class LeaderboardScreen implements Screen {
 
-    private Stage stage;
-    private Viewport viewport;
-    private Skin skin;
-    private MatchResultsRepository repository;
+    private static final Color GOLD = Color.valueOf("ffd700");
+    private static final Color MUTED = new Color(0.72f, 0.72f, 0.72f, 1f);
+    private static final Color WIN = Color.valueOf("8fe36b");
+    private static final String[] HEADERS = {"#", "PLAYER", "MODE", "KILLS", "SURVIVED", "SCORE", "RESULT"};
+    private static final float[] WIDTHS = {40, 230, 100, 80, 110, 100, 90};
 
-    private Window window;
-    private Table rowsContainer;
+    private final BattleRoyaleLite game = BattleRoyaleLite.get();
+    private final Viewport viewport = new FitViewport(GAME_WIDTH, GAME_HEIGHT, new OrthographicCamera());
+    private final Stage stage;
+    private final MenuBackdrop backdrop;
+    private final Table rows = new Table();
 
-    private int width = 700;
-    private int height = 500;
-
-    private static final boolean AUTOLEADERBOARD = SystemProps.getBoolean("bral.autoleaderboard");
-    private static final float AUTOLEADERBOARD_SECONDS = Float.parseFloat(
-            SystemProps.getProperty("bral.autoleaderboard.seconds", "6"));
-    private float autoExitElapsed;
-
-    // Async results are produced on a background thread (desktop) and consumed on the render thread.
+    // Results arrive on a network thread and are applied on the render thread.
     private volatile List<MatchResult> pendingResults;
     private volatile String pendingError;
-    private boolean resultsApplied;
+    private boolean applied;
 
     public LeaderboardScreen(MatchResultsRepository repository) {
-        this.repository = repository;
-        setupStage();
-        forgeLeaderboardScreen();
-        requestLeaderboard();
-    }
+        stage = new Stage(viewport, game.getBatch());
+        backdrop = new MenuBackdrop(game.getResources());
+        Skin buttons = game.getResources().getSkin(ResourceHandler.SkinPaths.BUTTON_SKIN);
 
-    private void setupStage() {
-        viewport = new FitViewport(GAME_WIDTH, GAME_HEIGHT, new OrthographicCamera());
-        stage = new Stage(viewport);
-        skin = new Skin();
-        skin.add("bombard", FontGenerator.generate(ResourceHandler.FontPath.BOMBARD, 26, false));
-        skin.addRegions(new TextureAtlas(Gdx.files.internal("skins/vis/skin/x2/uiskin.atlas")));
-        skin.load(Gdx.files.internal("skins/vis/skin/x2/uiskin.json"));
+        Table root = new Table();
+        root.setFillParent(true);
+        root.top().padTop(70);
+        root.add(new Label("LEADERBOARD", style(42, Color.WHITE))).row();
+        root.add(new Label("TOP 10 SCORES", style(16, MUTED))).padBottom(24).row();
+
+        Table header = new Table();
+        for (int i = 0; i < HEADERS.length; i++) {
+            Label label = new Label(HEADERS[i], style(14, MUTED));
+            label.setAlignment(i == 1 ? Align.left : Align.center);
+            header.add(label).width(WIDTHS[i]);
+        }
+        root.add(header).padBottom(8).row();
+
+        rows.add(new Label("Loading...", style(18, Color.WHITE))).padTop(20);
+        root.add(rows).height(370).top().row();
+
+        Table footer = new Table();
+        PauseMenu.addButton(footer, buttons, "BACK", new Runnable() {
+            public void run() {
+                back();
+            }
+        });
+        root.add(footer).padTop(10).row();
+        root.add(new Label("Score = 100 per kill + 500 for a win + 10 per second survived", style(14, MUTED)))
+                .padTop(6);
+        stage.addActor(root);
+
+        request(repository);
         Gdx.input.setInputProcessor(stage);
     }
 
-    private void forgeLeaderboardScreen() {
-        window = new Window("LEADERBOARD", skin, "no-stage-background");
-        window.setSize(width, height);
-        window.setPosition(pCenter(GAME_WIDTH) - pCenter(width), pCenter(GAME_HEIGHT) - pCenter(height));
-
-        Label titleLabel = new Label("TOP MATCHES", new Label.LabelStyle(
-                FontGenerator.generate(ResourceHandler.FontPath.BOMBARD, 24, false), Color.GOLD));
-        window.add(titleLabel).padTop(10).row();
-
-        Table headerTable = new Table();
-        headerTable.padTop(10);
-
-        headerTable.add(headerLabel("#")).width(40);
-        headerTable.add(headerLabel("PLAYER")).width(180);
-        headerTable.add(headerLabel("SCORE")).width(80);
-        headerTable.add(headerLabel("TIME")).width(80);
-        headerTable.add(headerLabel("RESULT")).width(100);
-        window.add(headerTable).row();
-
-        rowsContainer = new Table();
-        rowsContainer.add(new Label("Loading leaderboard...", rowStyle(16, Color.WHITE))).padTop(20).row();
-        window.add(rowsContainer).padTop(2).row();
-
-        TextButton backButton = new TextButton("BACK", skin);
-        backButton.addListener(new ClickListener() {
-            @Override
-            public void clicked(InputEvent event, float x, float y) {
-                BattleRoyaleArenaLite game = (BattleRoyaleArenaLite) Gdx.app.getApplicationListener();
-                game.setScreen(new MainMenu(game.getBatch()));
-            }
-        });
-        window.add(backButton).padTop(15).row();
-
-        stage.addActor(window);
-    }
-
-    private Label headerLabel(String text) {
-        return new Label(text, new Label.LabelStyle(
-                FontGenerator.generate(ResourceHandler.FontPath.BOMBARD, 14, false), Color.LIGHT_GRAY));
-    }
-
-    private Label.LabelStyle rowStyle(int size, Color color) {
-        return new Label.LabelStyle(FontGenerator.generate(ResourceHandler.FontPath.BOMBARD, size, false), color);
-    }
-
-    private void requestLeaderboard() {
+    private void request(MatchResultsRepository repository) {
         if (repository == null || !repository.isConnected()) {
-            pendingError = "Supabase is not configured.";
+            pendingError = "The leaderboard is offline in this build.";
             return;
         }
         repository.getLeaderboard(10, new MatchResultsRepository.LeaderboardCallback() {
@@ -128,89 +96,93 @@ public class LeaderboardScreen implements Screen {
 
             @Override
             public void onFailure(String errorMessage) {
-                pendingError = errorMessage;
+                pendingError = "Could not load the leaderboard. Check your connection.";
             }
         });
     }
 
-    private void consumeResults() {
-        if (resultsApplied) {
+    private void applyResults() {
+        if (applied) {
             return;
         }
         if (pendingError != null) {
-            showMessage(pendingError, Color.RED);
-            resultsApplied = true;
-            pendingError = null;
-            return;
-        }
-        if (pendingResults == null) {
-            return;
-        }
-        if (pendingResults.isEmpty()) {
-            showMessage("No match results yet. Play a game!", Color.WHITE);
+            showMessage(pendingError);
+        } else if (pendingResults != null) {
+            if (pendingResults.isEmpty()) {
+                showMessage("No matches yet. Play one and claim the top spot.");
+            } else {
+                showRows(pendingResults);
+            }
         } else {
-            showRows(pendingResults);
+            return;
         }
-        resultsApplied = true;
-        pendingResults = null;
+        applied = true;
     }
 
-    private void showMessage(String message, Color color) {
-        rowsContainer.clearChildren();
-        rowsContainer.add(new Label(message, rowStyle(16, color))).padTop(20).row();
+    private void showMessage(String message) {
+        rows.clearChildren();
+        rows.add(new Label(message, style(18, Color.WHITE))).padTop(20);
     }
 
     private void showRows(List<MatchResult> results) {
-        rowsContainer.clearChildren();
+        rows.clearChildren();
+        String me = PlayerSettings.getPlayerName();
         int rank = 1;
-        for (MatchResult mr : results) {
-            Table rowTable = new Table();
-
-            Label rankLabel = new Label(Integer.toString(rank), rowStyle(14, Color.WHITE));
-            Label nameLabel = new Label(mr.getPlayerName(), rowStyle(14, Color.WHITE));
-            Label scoreLabel = new Label(Integer.toString(mr.getScore()), rowStyle(14, Color.CYAN));
-            Label timeLabel = new Label(mr.getFormattedTime(), rowStyle(14, Color.WHITE));
-
-            Color resultColor = "WIN".equals(mr.getResult()) ? Color.GREEN : Color.RED;
-            Label resultLabel = new Label(mr.getResult(), rowStyle(14, resultColor));
-
-            rowTable.add(rankLabel).width(40);
-            rowTable.add(nameLabel).width(180);
-            rowTable.add(scoreLabel).width(80);
-            rowTable.add(timeLabel).width(80);
-            rowTable.add(resultLabel).width(100);
-
-            rowsContainer.add(rowTable).padTop(2).padBottom(2).row();
+        for (MatchResult result : results) {
+            boolean mine = me.equalsIgnoreCase(result.getPlayerName());
+            boolean won = "WIN".equals(result.getResult());
+            Color text = mine ? GOLD : Color.WHITE;
+            String[] cells = {
+                    String.valueOf(rank),
+                    result.getPlayerName(),
+                    result.getDifficulty(),
+                    String.valueOf(result.getKills()),
+                    result.getFormattedTime(),
+                    String.valueOf(result.getScore()),
+                    won ? "WIN" : "LOSS"
+            };
+            for (int i = 0; i < cells.length; i++) {
+                Color color = i == 6 ? (won ? WIN : MUTED) : text;
+                Label label = new Label(cells[i], style(rank <= 3 ? 20 : 18, color));
+                label.setAlignment(i == 1 ? Align.left : Align.center);
+                label.setEllipsis(true);
+                rows.add(label).width(WIDTHS[i]).height(34);
+            }
+            rows.row();
             rank++;
         }
     }
 
-    @Override
-    public void show() {
-        Gdx.input.setInputProcessor(stage);
+    private void back() {
+        game.setScreen(new MainMenu());
+    }
+
+    private Label.LabelStyle style(int size, Color color) {
+        return new Label.LabelStyle(FontGenerator.generate(ResourceHandler.FontPath.BOMBARD, size, true), color);
     }
 
     @Override
     public void render(float delta) {
-        if (AUTOLEADERBOARD) {
-            autoExitElapsed += delta;
-            if (autoExitElapsed >= AUTOLEADERBOARD_SECONDS) {
-                if (pendingError == null && pendingResults == null) {
-                    Gdx.app.log("LEADERBOARD", "autotest: fetch still pending, forcing exit");
-                }
-                Gdx.app.exit();
-            }
-        }
-        consumeResults();
+        applyResults();
         Gdx.gl.glClearColor(0, 0, 0, 1);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
+        viewport.apply();
+        game.getBatch().setProjectionMatrix(viewport.getCamera().combined);
+        backdrop.draw(game.getBatch());
         stage.act(delta);
         stage.draw();
+        if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
+            back();
+        }
     }
 
     @Override
     public void resize(int width, int height) {
-        viewport.update(width, height);
+        viewport.update(width, height, true);
+    }
+
+    @Override
+    public void show() {
     }
 
     @Override
@@ -228,10 +200,5 @@ public class LeaderboardScreen implements Screen {
     @Override
     public void dispose() {
         stage.dispose();
-        skin.dispose();
-    }
-
-    public Stage getStage() {
-        return stage;
     }
 }

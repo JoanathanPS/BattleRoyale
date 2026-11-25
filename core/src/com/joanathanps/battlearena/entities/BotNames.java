@@ -1,40 +1,39 @@
 package com.joanathanps.battlearena.entities;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import com.badlogic.gdx.math.MathUtils;
 
+/** Hands out bot names for one match, each name at most once. */
 public final class BotNames {
 
-    private BotNames() { }
-
-    private static final String[] PRESET_NAMES = {
+    private static final String[] NAMES = {
             "PotatoAim", "NoobMaster", "CaptainCrunch", "BushCamper",
             "LootGoblin", "SirDiesALot", "WaffleKnight", "TacoSniper",
             "BananaReaper", "ChickenChaser", "SneakyPanda", "GhostRider",
             "CouchPotato", "BulletMagnet", "HeadshotHarry", "ZigZagZombie",
             "DustyBones", "PixelPancake", "BoomerBob", "SaltyPretzel",
             "NinjaFrog", "ToxicToad", "DangerNoodle", "LaserLlama",
-            "DrDisrespect", "MegaBite", "SniperWolf", "CyberSamurai",
-            "RustBucket", "ShadowStalker", "TurboTurtle", "SneakySneak",
-            "CrouchKing", "DropShotDan", "FlankFrank", "CampfireCarl",
-            "TriggerHappy", "PanMan", "RecoilRick", "ScopeGod",
-            "SavageSpoon", "MemeLord", "GlitchGremlin", "LagWizard"
+            "MegaBite", "CyberSamurai", "RustBucket", "ShadowStalker",
+            "TurboTurtle", "CrouchKing", "DropShotDan", "FlankFrank",
+            "CampfireCarl", "TriggerHappy", "PanMan", "RecoilRick",
+            "ScopeGod", "SavageSpoon", "GlitchGremlin", "LagWizard"
     };
 
-    private static List<String> shuffledPool = new ArrayList<>();
-    private static int poolIndex = 0;
+    private final String[] pool = NAMES.clone();
+    private int next;
 
-    public static synchronized String getNextName(int fallbackIndex) {
-        if (shuffledPool.isEmpty() || poolIndex >= shuffledPool.size()) {
-            shuffledPool = new ArrayList<>(Arrays.asList(PRESET_NAMES));
-            Collections.shuffle(shuffledPool);
-            poolIndex = 0;
+    public BotNames() {
+        for (int i = pool.length - 1; i > 0; i--) {
+            int j = MathUtils.random(i);
+            String swap = pool[i];
+            pool[i] = pool[j];
+            pool[j] = swap;
         }
-        if (poolIndex < shuffledPool.size()) {
-            return shuffledPool.get(poolIndex++);
+    }
+
+    public String next() {
+        if (next < pool.length) {
+            return pool[next++];
         }
-        return "Bot_" + fallbackIndex;
+        return "Bot" + (++next);
     }
 }

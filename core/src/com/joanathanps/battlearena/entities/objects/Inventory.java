@@ -1,7 +1,6 @@
 package com.joanathanps.battlearena.entities.objects;
 
 import com.joanathanps.battlearena.entities.Soldier;
-import com.joanathanps.battlearena.entities.objects.ammo.Ammo;
 import com.joanathanps.battlearena.entities.objects.equipment.armor.Armor;
 import com.joanathanps.battlearena.entities.objects.equipment.helmets.Helmet;
 import com.joanathanps.battlearena.entities.objects.weapons.Weapon;
@@ -9,29 +8,71 @@ import com.joanathanps.battlearena.scenes.Match;
 
 import java.util.ArrayList;
 
+/** Six item slots plus two equipment slots: 0 is the helmet, 1 is the vest. */
 public abstract class Inventory {
 
-    private Match match;
-    private ArrayList<EntityObject> items;
-    private ArrayList<EntityObject> equipmentItems;
+    public static final int SLOTS = 6;
+    public static final int HELMET = 0;
+    public static final int VEST = 1;
+
+    private final Match match;
+    private final Soldier soldier;
+    private final ArrayList<EntityObject> items = new ArrayList<>();
+    private final ArrayList<EntityObject> equipmentItems = new ArrayList<>();
     private boolean isSelectedBeingUsed;
-    private Soldier soldier;
 
     public Inventory(Match match, Soldier soldier) {
         this.match = match;
         this.soldier = soldier;
-        addItems();
-    }
-
-    private void addItems() {
-        items = new ArrayList<>();
-        for (int i = 0; i < 6; i++) {
+        for (int i = 0; i < SLOTS; i++) {
             items.add(new Empty(match));
         }
+        equipmentItems.add(new Empty(match));
+        equipmentItems.add(new Empty(match));
+    }
 
-        equipmentItems = new ArrayList<>();
-        equipmentItems.add(new Empty(match));
-        equipmentItems.add(new Empty(match));
+    /** The slot this soldier is holding. */
+    public abstract int getSelectedIndex();
+
+    public abstract void useSelectedItem(Soldier soldier);
+
+    public abstract void reloadSelectedWeapon();
+
+    public EntityObject getSelectedItem() {
+        return items.get(getSelectedIndex());
+    }
+
+    public void update(float delta) {
+        for (EntityObject item : items) {
+            if (item instanceof Weapon) {
+                ((Weapon) item).tick(delta);
+            }
+        }
+        int armorPoints = 0;
+        EntityObject helmet = equipmentItems.get(HELMET);
+        EntityObject vest = equipmentItems.get(VEST);
+        if (helmet instanceof Helmet) {
+            armorPoints += Math.max(0, ((Helmet) helmet).getArmorPoints());
+        }
+        if (vest instanceof Armor) {
+            armorPoints += Math.max(0, ((Armor) vest).getArmorPoints());
+        }
+        soldier.setArmor(armorPoints);
+    }
+
+    /** Bullets in the held weapon's magazine, or -1 when no weapon is held. */
+    public int getBulletsInMagazine() {
+        EntityObject selected = getSelectedItem();
+        return selected instanceof Weapon ? ((Weapon) selected).getBullets() : -1;
+    }
+
+    public boolean hasWeapon() {
+        for (EntityObject item : items) {
+            if (item instanceof Weapon) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public boolean isSelectedBeingUsed() {
@@ -41,36 +82,6 @@ public abstract class Inventory {
     public void setSelectedBeingUsed(boolean selectedBeingUsed) {
         isSelectedBeingUsed = selectedBeingUsed;
     }
-
-    public abstract void useSelectedItem(Soldier soldier);
-
-    public abstract void reloadSelectedWeapon();
-
-    protected boolean hasAmmoForWeaponType(Weapon weapon) {
-        for (EntityObject item : items) {
-            if (item instanceof Ammo && weapon.getAmmoType() == item.getClass()) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    public abstract void applyAction();
-
-    public abstract void transferAmmo(int bulletsInWeapon);
-
-    public abstract void update(float delta);
-
-    protected void setArmorPoints(float delta) {
-        int armorPoints = 0;
-        armorPoints += equipmentItems.get(0).getClass() != Empty.class ? ((Helmet)equipmentItems.get(0)).getArmorPoints() : 0;
-        armorPoints += equipmentItems.get(1).getClass() != Empty.class ? ((Armor)equipmentItems.get(1)).getArmorPoints() : 0;
-        soldier.setArmor(armorPoints);
-    }
-
-    public abstract int getBulletsInMagazine();
-
-    public abstract int getBulletsInAmmoBoxes();
 
     public ArrayList<EntityObject> getItems() {
         return items;

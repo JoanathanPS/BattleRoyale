@@ -1,43 +1,17 @@
 package com.joanathanps.battlearena.languages;
 
 import com.badlogic.gdx.Gdx;
-import com.badlogic.gdx.files.FileHandle;
 import com.badlogic.gdx.utils.I18NBundle;
-import com.joanathanps.battlearena.scheme.PlayerSettings;
 
-import java.util.Locale;
-
+/** All player-facing text, read from assets/localization/strings.properties. */
 public class Internationalization {
 
-    public enum Language {
-        ENGLISH
-    }
-
-    private I18NBundle bundle;
-
-    public Internationalization() {
-        setupBundle();
-    }
-
-    private void setupBundle() {
-        bundle = createBundleFor(PlayerSettings.getLanguage());
-    }
-
-    private static I18NBundle createBundleFor(Language language) {
-        FileHandle baseFileHandle = Gdx.files.internal("localization/BattleRoyaleArenaLite");
-        Locale locale = new Locale("", "");
-        if (language == Language.ENGLISH) {
-            locale = new Locale("en", "US");
-        }
-        return I18NBundle.createBundle(baseFileHandle, locale);
-    }
+    private static I18NBundle bundle;
 
     public I18NBundle getBundle() {
+        if (bundle == null) {
+            bundle = I18NBundle.createBundle(Gdx.files.internal("localization/strings"));
+        }
         return bundle;
-    }
-
-    public void setLanguage(Language language) {
-        PlayerSettings.setLanguage(language);
-        bundle = createBundleFor(language);
     }
 }

@@ -1,166 +1,138 @@
 package com.joanathanps.battlearena.gui;
 
-import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.OrthographicCamera;
-import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Stage;
-import com.badlogic.gdx.scenes.scene2d.ui.*;
-import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
+import com.badlogic.gdx.scenes.scene2d.actions.Actions;
+import com.badlogic.gdx.scenes.scene2d.ui.Image;
+import com.badlogic.gdx.scenes.scene2d.ui.Label;
+import com.badlogic.gdx.scenes.scene2d.ui.Skin;
+import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.utils.Disposable;
+import com.badlogic.gdx.utils.Scaling;
 import com.badlogic.gdx.utils.viewport.FitViewport;
-import com.badlogic.gdx.utils.viewport.Viewport;
-import com.joanathanps.battlearena.BattleRoyaleArenaLite;
+import com.joanathanps.battlearena.BattleRoyaleLite;
 import com.joanathanps.battlearena.database.MatchResultsRepository;
-import com.joanathanps.battlearena.entities.Enemy;
+import com.joanathanps.battlearena.entities.Soldier;
 import com.joanathanps.battlearena.graphics.FontGenerator;
 import com.joanathanps.battlearena.graphics.ResourceHandler;
-import com.joanathanps.battlearena.scenes.MainMenu;
 import com.joanathanps.battlearena.scenes.Match;
-import com.joanathanps.battlearena.scheme.PhysicsAdapter;
+import com.joanathanps.battlearena.scheme.PlayerSettings;
 
-import static com.joanathanps.battlearena.scheme.PhysicsAdapter.pCenter;
+import static com.joanathanps.battlearena.scheme.PhysicsAdapter.formatSeconds;
 import static com.joanathanps.battlearena.scheme.PlayerSettings.GAME_HEIGHT;
 import static com.joanathanps.battlearena.scheme.PlayerSettings.GAME_WIDTH;
 
+/** End-of-match results: placement, kills, time, who got you, and what to do next. */
 public class GameOver implements Disposable {
 
-    private Stage stage;
-    private Viewport viewport;
-    private Skin skin;
-
-    private Window window;
-    private Match match;
-
-    private Image background;
-
-    private int width = 400;
-    private int height = 300;
-
-    private boolean isWinner;
+    private final Match match;
+    private final Stage stage;
 
     public GameOver(Match match) {
         this.match = match;
-        setupStage();
+        stage = new Stage(new FitViewport(GAME_WIDTH, GAME_HEIGHT, new OrthographicCamera()), match.getBatch());
     }
 
-    private void setupStage() {
-        viewport = new FitViewport(GAME_WIDTH, GAME_HEIGHT, new OrthographicCamera());
-        stage = new Stage(viewport, match.getBatch());
+    /** Score: 100 per kill, 500 for a win, 10 per second survived. */
+    public static int score(int kills, boolean won, int seconds) {
+        return kills * 100 + (won ? 500 : 0) + seconds * 10;
     }
 
-    public void forgeGameOverScreen() {
-        saveMatchResult();
+    public void show(boolean won, int placement, int kills, int seconds, Soldier killer) {
+        int score = score(kills, won, seconds);
+        saveResult(won, kills, seconds, score);
 
-        background = new Image(match.getResources().getTexture(ResourceHandler.TexturePath.BLACK_BACKGROUND));
-        background.setScale(GAME_WIDTH, GAME_HEIGHT);
-        stage.addActor(background);
+        Skin skin = match.getResources().getSkin(ResourceHandler.SkinPaths.BUTTON_SKIN);
+        Image scrim = new Image(match.getResources().getTexture(ResourceHandler.TexturePath.BLACK_BACKGROUND));
+        scrim.setBounds(0, 0, GAME_WIDTH, GAME_HEIGHT);
+        scrim.setColor(0, 0, 0, 0.72f);
+        stage.addActor(scrim);
 
-        skin = match.getResources().getSkin(ResourceHandler.SkinPaths.WINDOW_SKIN);
+        Table root = new Table();
+        root.setFillParent(true);
+        root.center();
 
-        window = new Window("", skin, "no-stage-background");
-        window.setSize(width, height);
-        window.setPosition(pCenter(GAME_WIDTH), pCenter(GAME_HEIGHT) - pCenter(height));
-        window.padTop(-20);
+        Image icon = new Image(match.getResources().getTexture(won
+                ? ResourceHandler.TexturePath.SAILING : ResourceHandler.TexturePath.IS_DED));
+        icon.setScaling(Scaling.fit);
+        root.add(icon).size(220).padRight(56);
 
-        Label title;
+        Table column = new Table();
+        column.left();
+        Label title = new Label(text(won ? "victory" : "failure"), style(48, won ? new Color(1f, 0.84f, 0f, 1f) : Color.WHITE));
+        column.add(title).left().row();
 
-        if (isWinner) {
-            title = new Label(match.getI18n().getBundle().get("victory"), skin);
-        } else {
-            title = new Label(match.getI18n().getBundle().get("failure"), skin);
-        }
-        window.add(title).row();
+        String subtitle = won ? text("lastStanding")
+                : killer == null ? text("killedByZone")
+                : text("killedBy") + " " + killer.getName();
+        column.add(new Label(subtitle, style(18, new Color(0.8f, 0.8f, 0.8f, 1f)))).left().padBottom(18).row();
 
-        int rank = match.getWorldBuilder().getEnemies().size() + 1;
+        Table stats = new Table();
+        addStat(stats, text("place"), "#" + placement + " / " + (match.getDifficulty().getBotCount() + 1));
+        addStat(stats, text("kills"), String.valueOf(kills));
+        addStat(stats, text("survived"), formatSeconds(seconds, false));
+        addStat(stats, text("score"), String.valueOf(score));
+        column.add(stats).left().padBottom(18).row();
 
-        for (Enemy enemy : match.getWorldBuilder().getEnemies()) {
-            if (enemy.isDead()) {
-                rank--;
-            }
-        }
-
-        window.add(new Label(match.getI18n().getBundle().get("rank") + " #" + rank,
-                new Label.LabelStyle(FontGenerator.generate(ResourceHandler.FontPath.BOMBARD,
-                        18, false), Color.WHITE))).padTop(20).row();
-
-        window.add(new Label(match.getI18n().getBundle().get("kills") + ": " + match.getPlayer().getKills(),
-                new Label.LabelStyle(FontGenerator.generate(ResourceHandler.FontPath.BOMBARD,
-                        18, false), Color.WHITE))).padTop(5).row();
-
-        window.add(new Label(match.getI18n().getBundle().get("matchDuration") + ": " +
-                PhysicsAdapter.formatSeconds(match.getMatchDuration(), false),
-                new Label.LabelStyle(FontGenerator.generate(ResourceHandler.FontPath.BOMBARD,
-                        18, false), Color.WHITE))).padTop(5).row();
-
-        TextButton leaderboardButton = new TextButton("LEADERBOARD", skin);
-        leaderboardButton.addListener(new ClickListener() {
-            @Override
-            public void clicked(InputEvent event, float x, float y) {
-                BattleRoyaleArenaLite game = (BattleRoyaleArenaLite) Gdx.app.getApplicationListener();
-                MatchResultsRepository repository = game.getMatchResultsRepository();
-                if (repository != null) {
-                    game.setScreen(new LeaderboardScreen(repository));
-                }
+        Table buttons = new Table();
+        PauseMenu.addButton(buttons, skin, text("playAgain"), new Runnable() {
+            public void run() {
+                match.playAgain();
             }
         });
-        window.add(leaderboardButton).padTop(10).row();
-
-        TextButton backButton = new TextButton(match.getI18n().getBundle().get("pauseMenuBack"), skin);
-
-        backButton.addListener(new ClickListener(){
-            @Override
-            public void clicked(InputEvent event, float x, float y) {
-                BattleRoyaleArenaLite game = (BattleRoyaleArenaLite)Gdx.app.getApplicationListener();
-                game.setScreen(new MainMenu(match.getBatch()));
+        PauseMenu.addButton(buttons, skin, text("leaderboard"), new Runnable() {
+            public void run() {
+                BattleRoyaleLite game = BattleRoyaleLite.get();
+                game.setScreen(new LeaderboardScreen(game.getMatchResultsRepository()));
             }
         });
-
-        window.add(backButton).padTop(5).row();
-
-        stage.addActor(window);
-
-        Image icon;
-
-        if (isWinner) {
-            icon = new Image(match.getResources().getTexture(ResourceHandler.TexturePath.SAILING));
-        } else {
-            icon = new Image(match.getResources().getTexture(ResourceHandler.TexturePath.IS_DED));
-        }
-
-        icon.setPosition(pCenter(GAME_WIDTH) - height - 30, pCenter(GAME_HEIGHT) - pCenter(height));
-
-        stage.addActor(icon);
-    }
-
-    private void saveMatchResult() {
-        try {
-            BattleRoyaleArenaLite game = (BattleRoyaleArenaLite) Gdx.app.getApplicationListener();
-            MatchResultsRepository repository = game.getMatchResultsRepository();
-
-            if (repository != null) {
-                int kills = match.getPlayer().getKills();
-                int duration = match.getMatchDuration();
-                String result = isWinner ? "WIN" : "LOSS";
-                int score = kills * 100 + (isWinner ? 500 : 0) + (duration * 10);
-
-                repository.saveMatchResult(match.getPlayer().getName(), match.getDifficulty().getLabel(), score, kills, duration, result);
+        PauseMenu.addButton(buttons, skin, text("pauseMenuBack"), new Runnable() {
+            public void run() {
+                match.backToMenu();
             }
-        } catch (Exception e) {
-            System.err.println("Error saving match result: " + e.getMessage());
+        });
+        column.add(buttons).left();
+        root.add(column).left();
+
+        root.getColor().a = 0;
+        root.addAction(Actions.fadeIn(0.35f));
+        stage.addActor(root);
+    }
+
+    private void addStat(Table stats, String label, String value) {
+        stats.add(new Label(label, style(18, new Color(0.7f, 0.7f, 0.7f, 1f)))).left().padRight(28);
+        stats.add(new Label(value, style(22, Color.WHITE))).left().row();
+    }
+
+    private void saveResult(boolean won, int kills, int seconds, int score) {
+        MatchResultsRepository repository = BattleRoyaleLite.get().getMatchResultsRepository();
+        if (repository != null) {
+            repository.saveMatchResult(PlayerSettings.getPlayerName(), match.getDifficulty().getLabel(),
+                    score, kills, seconds, won ? "WIN" : "LOSS");
         }
     }
 
-    @Override
-    public void dispose() {
-        stage.dispose();
+    private Label.LabelStyle style(int size, Color color) {
+        return new Label.LabelStyle(FontGenerator.generate(ResourceHandler.FontPath.BOMBARD, size, true), color);
+    }
+
+    private String text(String key) {
+        return match.getI18n().getBundle().get(key);
+    }
+
+    public void draw(float delta) {
+        stage.getViewport().apply();
+        stage.act(delta);
+        stage.draw();
     }
 
     public Stage getStage() {
         return stage;
     }
 
-    public void setWinner(boolean winner) {
-        isWinner = winner;
+    @Override
+    public void dispose() {
+        stage.dispose();
     }
 }

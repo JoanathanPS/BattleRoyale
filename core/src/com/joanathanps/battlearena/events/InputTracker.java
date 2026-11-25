@@ -3,13 +3,15 @@ package com.joanathanps.battlearena.events;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.InputAdapter;
-import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.math.Vector2;
-import com.badlogic.gdx.math.Vector3;
+import com.badlogic.gdx.utils.viewport.Viewport;
 
-import static com.joanathanps.battlearena.scheme.PlayerSettings.GAME_HEIGHT;
-import static com.joanathanps.battlearena.scheme.PlayerSettings.GAME_WIDTH;
-
+/**
+ * Match input. Keeps two views of every action:
+ * held (true while the key is down) and pressed (true for the frame after a key-down, even if
+ * the key was released before that frame ran). Call {@link #endFrame()} once per frame after
+ * everything has read the input, so a quick tap is never lost.
+ */
 public final class InputTracker extends InputAdapter {
 
     public static final int UP = 0;
@@ -26,183 +28,117 @@ public final class InputTracker extends InputAdapter {
     public static final int NUM_5 = 11;
     public static final int NUM_6 = 12;
     public static final int R = 13;
-    private static final int MAX = 14;
+    private static final int COUNT = 14;
 
-    private static boolean[] keyPresses;
+    private static final boolean[] held = new boolean[COUNT];
+    private static final boolean[] pressed = new boolean[COUNT];
+    private static final Vector2 mouseWorld = new Vector2();
 
-    private static Vector2 mousePosition;
-    private Vector3 mousePosition3D;
-    private final OrthographicCamera camera;
+    private final Viewport viewport;
+    private int scroll;
 
-    private int scrollAmount = 0;
-
-    public InputTracker(OrthographicCamera camera) {
-        this.camera = camera;
-        init();
+    public InputTracker(Viewport viewport) {
+        this.viewport = viewport;
+        resetAllKeys();
     }
 
-    private void init() {
-        keyPresses = new boolean[InputTracker.MAX];
-        mousePosition = new Vector2();
-        mousePosition3D = new Vector3();
+    private static int actionFor(int keycode) {
+        switch (keycode) {
+            case Input.Keys.W: return UP;
+            case Input.Keys.S: return DOWN;
+            case Input.Keys.A: return LEFT;
+            case Input.Keys.D: return RIGHT;
+            case Input.Keys.ESCAPE: return ESC;
+            case Input.Keys.M: return M;
+            case Input.Keys.E: return E;
+            case Input.Keys.NUM_1: return NUM_1;
+            case Input.Keys.NUM_2: return NUM_2;
+            case Input.Keys.NUM_3: return NUM_3;
+            case Input.Keys.NUM_4: return NUM_4;
+            case Input.Keys.NUM_5: return NUM_5;
+            case Input.Keys.NUM_6: return NUM_6;
+            case Input.Keys.R: return R;
+            default: return -1;
+        }
     }
 
     @Override
     public boolean keyDown(int keycode) {
-        switch (keycode) {
-            case Input.Keys.A:
-                keyPresses[LEFT] = true;
-                break;
-            case Input.Keys.D:
-                keyPresses[RIGHT] = true;
-                break;
-            case Input.Keys.W:
-                keyPresses[UP] = true;
-                break;
-            case Input.Keys.S:
-                keyPresses[DOWN] = true;
-                break;
-            case Input.Keys.ESCAPE:
-                keyPresses[ESC] = true;
-                break;
-            case Input.Keys.M:
-                keyPresses[M] = true;
-                break;
-            case Input.Keys.E:
-                keyPresses[E] = true;
-                break;
-            case Input.Keys.NUM_1:
-                keyPresses[NUM_1] = true;
-                break;
-            case Input.Keys.NUM_2:
-                keyPresses[NUM_2] = true;
-                break;
-            case Input.Keys.NUM_3:
-                keyPresses[NUM_3] = true;
-                break;
-            case Input.Keys.NUM_4:
-                keyPresses[NUM_4] = true;
-                break;
-            case Input.Keys.NUM_5:
-                keyPresses[NUM_5] = true;
-                break;
-            case Input.Keys.NUM_6:
-                keyPresses[NUM_6] = true;
-                break;
-            case Input.Keys.R:
-                keyPresses[R] = true;
-                break;
+        int action = actionFor(keycode);
+        if (action < 0) {
+            return false;
         }
+        held[action] = true;
+        pressed[action] = true;
         return true;
     }
 
     @Override
     public boolean keyUp(int keycode) {
-        switch (keycode) {
-            case Input.Keys.A:
-                keyPresses[LEFT] = false;
-                break;
-            case Input.Keys.D:
-                keyPresses[RIGHT] = false;
-                break;
-            case Input.Keys.W:
-                keyPresses[UP] = false;
-                break;
-            case Input.Keys.S:
-                keyPresses[DOWN] = false;
-                break;
-            case Input.Keys.ESCAPE:
-                keyPresses[ESC] = false;
-                break;
-            case Input.Keys.M:
-                keyPresses[M] = false;
-                break;
-            case Input.Keys.E:
-                keyPresses[E] = false;
-                break;
-            case Input.Keys.NUM_1:
-                keyPresses[NUM_1] = false;
-                break;
-            case Input.Keys.NUM_2:
-                keyPresses[NUM_2] = false;
-                break;
-            case Input.Keys.NUM_3:
-                keyPresses[NUM_3] = false;
-                break;
-            case Input.Keys.NUM_4:
-                keyPresses[NUM_4] = false;
-                break;
-            case Input.Keys.NUM_5:
-                keyPresses[NUM_5] = false;
-                break;
-            case Input.Keys.NUM_6:
-                keyPresses[NUM_6] = false;
-                break;
-            case Input.Keys.R:
-                keyPresses[R] = false;
-                break;
+        int action = actionFor(keycode);
+        if (action < 0) {
+            return false;
         }
+        held[action] = false;
         return true;
     }
 
     @Override
     public boolean scrolled(int amount) {
-        if(amount == 1 || amount == -1){
-            scrollAmount = amount;
-            return true;
-        }
-        scrollAmount = 0;
-        return false;
+        scroll += amount;
+        return true;
     }
 
-    public int isScrolling() {
-        return scrollAmount;
+    /** True while the key is down. */
+    public static boolean isHeld(int action) {
+        return held[action];
     }
 
-    public static boolean isPressed(int key) {
-        return keyPresses[key];
+    /** True once per key-down, until the end of the frame that reads it. */
+    public static boolean wasPressed(int action) {
+        return pressed[action];
     }
 
     public static boolean isShiftHeld() {
         return Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT) || Gdx.input.isKeyPressed(Input.Keys.SHIFT_RIGHT);
     }
 
-    public static int getRelativeX() {
-        return (Gdx.input.getX() < GAME_WIDTH / 2 ?
-                -((GAME_WIDTH / 2) - Gdx.input.getX()) : Gdx.input.getX() - (GAME_WIDTH / 2));
+    /** Cursor offset from the window centre in window pixels, x to the right and y downwards. */
+    public static float getRelativeX() {
+        return Gdx.input.getX() - Gdx.graphics.getWidth() / 2f;
     }
 
-    public static int getRelativeY() {
-        return (Gdx.input.getY() < GAME_HEIGHT / 2 ?
-                -((GAME_HEIGHT / 2) - Gdx.input.getY()) : Gdx.input.getY() - (GAME_HEIGHT / 2));
+    public static float getRelativeY() {
+        return Gdx.input.getY() - Gdx.graphics.getHeight() / 2f;
     }
 
+    /** Cursor position in world units, refreshed by {@link #update()}. */
     public static Vector2 getMousePos() {
-        return mousePosition;
+        return mouseWorld;
+    }
+
+    /** Scroll steps since the last frame: negative is up, positive is down. */
+    public int getScroll() {
+        return scroll;
     }
 
     public void update() {
-        mousePosition3D.x = Gdx.input.getX();
-        mousePosition3D.y = Gdx.input.getY();
-        mousePosition3D.z = 0;
-        camera.unproject(mousePosition3D);
-        mousePosition.x = mousePosition3D.x;
-        mousePosition.y = mousePosition3D.y;
+        mouseWorld.set(Gdx.input.getX(), Gdx.input.getY());
+        viewport.unproject(mouseWorld);
     }
 
-    public void resetSecondaryKeys() {
-        for (int i = 4; i < MAX; i++) {
-            keyPresses[i] = false;
+    public void endFrame() {
+        for (int i = 0; i < COUNT; i++) {
+            pressed[i] = false;
         }
+        scroll = 0;
     }
 
     public void resetAllKeys() {
-        for (int i = 0; i < MAX; i++) {
-            keyPresses[i] = false;
+        for (int i = 0; i < COUNT; i++) {
+            held[i] = false;
+            pressed[i] = false;
         }
-    }
-
-    public void resetScrollAmount() {
-        scrollAmount = 0;
+        scroll = 0;
     }
 }

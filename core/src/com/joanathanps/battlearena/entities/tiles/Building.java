@@ -79,6 +79,11 @@ public class Building extends InteractiveTile {
         }
     }
 
+    /** Puts the roof back. The tile map is shared between matches, so the match calls this on exit. */
+    public void restoreCeiling() {
+        traverseCeilingTiles(TraverseMode.SHOW);
+    }
+
     @Override
     public void onPlayerEnter() {
         traverseCeilingTiles(TraverseMode.HIDE);

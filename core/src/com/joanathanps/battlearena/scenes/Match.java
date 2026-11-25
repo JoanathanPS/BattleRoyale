@@ -4,333 +4,433 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
-import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.maps.tiled.TiledMap;
-import com.badlogic.gdx.maps.tiled.TmxMapLoader;
 import com.badlogic.gdx.maps.tiled.renderers.OrthogonalTiledMapRenderer;
-import com.badlogic.gdx.math.Vector3;
-import com.badlogic.gdx.physics.box2d.Box2DDebugRenderer;
+import com.badlogic.gdx.math.MathUtils;
+import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.World;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
+import com.joanathanps.battlearena.BattleRoyaleLite;
+import com.joanathanps.battlearena.audio.AudioManager;
 import com.joanathanps.battlearena.entities.Enemy;
 import com.joanathanps.battlearena.entities.Player;
+import com.joanathanps.battlearena.entities.Soldier;
 import com.joanathanps.battlearena.entities.objects.EntityObject;
 import com.joanathanps.battlearena.entities.objects.weapons.ars.AssaultRifle;
 import com.joanathanps.battlearena.entities.objects.weapons.pistols.Pistol;
 import com.joanathanps.battlearena.entities.objects.weapons.srs.SniperRifle;
 import com.joanathanps.battlearena.entities.projectiles.Bullet;
-import com.joanathanps.battlearena.entities.tiles.Loot;
+import com.joanathanps.battlearena.entities.tiles.Building;
 import com.joanathanps.battlearena.events.InputTracker;
 import com.joanathanps.battlearena.events.SafeZoneController;
 import com.joanathanps.battlearena.events.WorldContactListener;
 import com.joanathanps.battlearena.forge.WorldBuilder;
 import com.joanathanps.battlearena.graphics.ResourceHandler;
-import com.joanathanps.battlearena.gui.*;
+import com.joanathanps.battlearena.gui.GameOver;
+import com.joanathanps.battlearena.gui.HUD;
+import com.joanathanps.battlearena.gui.MatchMap;
+import com.joanathanps.battlearena.gui.PauseMenu;
+import com.joanathanps.battlearena.gui.Progress;
 import com.joanathanps.battlearena.languages.Internationalization;
 import com.joanathanps.battlearena.scheme.Difficulty;
-import com.joanathanps.battlearena.scheme.SystemProps;
-import com.joanathanps.battlearena.scheme.MathUtils;
 import com.joanathanps.battlearena.scheme.PhysicsAdapter;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 
 import static com.joanathanps.battlearena.scheme.PhysicsAdapter.*;
-import static com.joanathanps.battlearena.scheme.PlayerSettings.*;
+import static com.joanathanps.battlearena.scheme.PlayerSettings.GAME_HEIGHT;
+import static com.joanathanps.battlearena.scheme.PlayerSettings.GAME_WIDTH;
 
+/** One match: the island, the player, the bots, the zone and every overlay on top. */
 public class Match implements Screen {
 
     public enum GameState {
-        RUNNING, PAUSED, TACTICAL, LOOTING, GAME_OVER
+        RUNNING, PAUSED, TACTICAL, GAME_OVER
     }
 
-    // game
-    private SpriteBatch batch;
-    private Internationalization i18n;
-    private ResourceHandler resources;
+    private static final float STEP = 1 / 60f;
+    private static final int MAX_STEPS = 5;
+    /** Time to watch your own death before the results appear. */
+    private static final float DEATH_DELAY = 1.2f;
 
-    // rendering
-    private OrthographicCamera camera;
-    private Viewport viewport;
-    private HUD hud;
-    private Progress progress;
-    private PauseMenu pause;
-    private LootInterface loot;
-    private MatchMap matchMap;
-    private GameOver gameOver;
-    private OrthogonalTiledMapRenderer renderer;
-    private OrthogonalTiledMapRenderer overRenderer;
-    private Box2DDebugRenderer collisionDebugRenderer;
-    private float cameraZoom = 20;
-
-    // world
-    private World world;
-    private WorldBuilder worldBuilder;
-    private Player player;
-    private TmxMapLoader mapLoader;
-    private TiledMap map;
-    private TiledMap overMap;
-    private ArrayList<Bullet> bullets;
-    private Texture waterBackground;
-    private Texture deadLoot;
-
-    // dev/verification mode: watches a full match without any player input (system property -Dbral.autodemo=true)
-    private static final boolean AUTODEMO = SystemProps.getBoolean("bral.autodemo");
-    private static final float AUTODEMO_SECONDS = Float.parseFloat(SystemProps.getProperty("bral.autodemo.seconds", "60"));
-    private float autodemoElapsed;
-    private float autodemoLogTick;
-
-    // events
-    private InputTracker input;
-    private GameState state;
-    private SafeZoneController safeZoneController;
-    private boolean gameIsOver;
-    private int matchDuration;
-    private float matchTimeCount;
+    private final BattleRoyaleLite game;
+    private final SpriteBatch batch;
+    private final ResourceHandler resources;
+    private final Internationalization i18n;
     private final Difficulty difficulty;
 
-    Match(SpriteBatch batch, Difficulty difficulty) {
+    private final OrthographicCamera camera = new OrthographicCamera();
+    private final Viewport viewport;
+    private final Vector2 cameraTarget = new Vector2();
+    private float cameraZoom = 1f;
+    private float snappedX;
+    private float snappedY;
+    private final ShapeRenderer shapes = new ShapeRenderer();
+    private final OrthogonalTiledMapRenderer renderer;
+    private final OrthogonalTiledMapRenderer overRenderer;
+    private final TiledMap map;
+    private final TiledMap overMap;
+    private final Texture waterBackground;
+    private final Texture deadLoot;
+
+    private final World world;
+    private final WorldBuilder worldBuilder;
+    private final Player player;
+    private final SafeZoneController safeZoneController;
+    private final ArrayList<Bullet> bullets = new ArrayList<>();
+    private float physicsTime;
+
+    private final HUD hud;
+    private final Progress progress;
+    private final PauseMenu pause;
+    private final MatchMap matchMap;
+    private final GameOver gameOver;
+    private final InputTracker input;
+
+    private GameState state = GameState.RUNNING;
+    private float matchTime;
+    private float gameOverTimer = -1f;
+    private boolean won;
+    private int placement;
+
+    public Match(Difficulty difficulty) {
         this.difficulty = difficulty;
-        this.batch = batch;
-        loadResources();
-        setupCamera();
-        setupRenderer();
-        setupCursor();
-        forgeWorld();
-        setupInputTracker();
-    }
-
-    public Difficulty getDifficulty() {
-        return difficulty;
-    }
-
-    private void loadResources() {
-        resources = new ResourceHandler();
+        game = BattleRoyaleLite.get();
+        batch = game.getBatch();
+        resources = game.getResources();
         resources.loadMatchResources();
-        mapLoader = new TmxMapLoader();
+        i18n = new Internationalization();
+
         map = resources.getTiledMap(ResourceHandler.TiledMapPath.TILEMAP);
         overMap = resources.getTiledMap(ResourceHandler.TiledMapPath.OVER_TILEMAP);
-        i18n = new Internationalization();
-    }
+        renderer = new OrthogonalTiledMapRenderer(map, PhysicsAdapter.getScale(), batch);
+        overRenderer = new OrthogonalTiledMapRenderer(overMap, PhysicsAdapter.getScale(), batch);
+        waterBackground = resources.getTexture(ResourceHandler.TexturePath.WATER_BACKGROUND);
+        deadLoot = resources.getTexture(ResourceHandler.TexturePath.DEAD_LOOT);
 
-    private void setupCamera() {
-        camera = new OrthographicCamera();
-        viewport = new FitViewport(pScale(GAME_WIDTH) * cameraZoom, pScale(GAME_HEIGHT) * cameraZoom, camera);
-        viewport.apply();
+        viewport = new FitViewport(pScale(GAME_WIDTH), pScale(GAME_HEIGHT), camera);
         hud = new HUD(this);
         progress = new Progress(this);
-        pause = new PauseMenu(this);
-        gameOver = new GameOver(this);
-        matchMap = new MatchMap(this);
-        camera.position.set(pScale((float) Math.sqrt(MAP_AREA)), pScale((float) Math.sqrt(MAP_AREA)), 0);
-        camera.update();
-    }
 
-    private void setupRenderer() {
-        renderer = new OrthogonalTiledMapRenderer(map, PhysicsAdapter.getScale());
-        overRenderer = new OrthogonalTiledMapRenderer(overMap, PhysicsAdapter.getScale());
-        collisionDebugRenderer = new Box2DDebugRenderer();
-        setState(GameState.RUNNING);
-    }
-
-    private void setupCursor() {
-        setCursor(resources.getPixmap(ResourceHandler.PixmapPath.MATCH_CURSOR), true);
-    }
-
-    private void forgeWorld() {
         world = new World(GRAVITY, true);
+        world.setAutoClearForces(false);
         worldBuilder = new WorldBuilder(this);
-        player = new Player(this, 35, 5, 8, worldBuilder.getPlayerSpawnPoint());
+        player = new Player(this, worldBuilder.getPlayerSpawnPoint());
+        safeZoneController = new SafeZoneController(this);
         for (Enemy enemy : worldBuilder.getEnemies()) {
             enemy.getAi().wakeUp(worldBuilder);
         }
         world.setContactListener(new WorldContactListener(this));
-        safeZoneController = new SafeZoneController(this);
-        bullets = new ArrayList<>();
-        waterBackground = resources.getTexture(ResourceHandler.TexturePath.WATER_BACKGROUND);
-        deadLoot = resources.getTexture(ResourceHandler.TexturePath.DEAD_LOOT);
-        matchDuration = 0;
+
+        pause = new PauseMenu(this);
+        matchMap = new MatchMap(this);
+        gameOver = new GameOver(this);
+
+        input = new InputTracker(viewport);
+        Vector2 spawn = player.getBody().getPosition();
+        camera.position.set(spawn.x, spawn.y, 0);
+        enterState(GameState.RUNNING);
     }
 
-    private void setupInputTracker() {
-        input = new InputTracker(camera);
-        Gdx.input.setInputProcessor(input);
-    }
+    // ---- state ----
 
-    private void updateCamera() {
-        // smoothly moves the camera to the player's position with an offset generated by the mouse input
-        camera.position.lerp(new Vector3(
-                player.getBody().getPosition().x + (float)InputTracker.getRelativeX() / 300,
-                player.getBody().getPosition().y - (float)InputTracker.getRelativeY() / 300,
-                0), 0.05f);
-        // the camera position is rounded to avoid artifacts on unfiltered textures
-        camera.position.set((float) ((double) Math.round(camera.position.x * 100d) / 100d),
-                (float) ((double) Math.round(camera.position.y * 100d) / 100d), camera.position.z);
-        camera.update();
-        renderer.setView(camera);
-        overRenderer.setView(camera);
-
-        EntityObject activeHeld = player.getInventory().getItem(hud.getSelectedSlot());
-        if (activeHeld instanceof SniperRifle) {
-            cameraZoom = MathUtils.lerp(cameraZoom, 2, .05f);
-        } else if (activeHeld instanceof AssaultRifle) {
-            cameraZoom = MathUtils.lerp(cameraZoom, 1.3f, .05f);
-        } else if (activeHeld instanceof Pistol) {
-            cameraZoom = MathUtils.lerp(cameraZoom, 1.1f, .05f);
-        } else {
-            cameraZoom = MathUtils.lerp(cameraZoom, 1, .05f);
-        }
-        viewport.setWorldSize(pScale(GAME_WIDTH) * cameraZoom, pScale(GAME_HEIGHT) * cameraZoom);
-        viewport.apply();
-    }
-
-    private void updateBullets() {
-        for (Bullet bullet : bullets) {
-            bullet.moveForward();
+    private void enterState(GameState next) {
+        state = next;
+        input.resetAllKeys();
+        switch (next) {
+            case RUNNING:
+            case TACTICAL:
+                Gdx.input.setInputProcessor(input);
+                game.useCursor(next == GameState.RUNNING);
+                break;
+            case PAUSED:
+                Gdx.input.setInputProcessor(pause.getStage());
+                game.useCursor(false);
+                break;
+            case GAME_OVER:
+                Gdx.input.setInputProcessor(gameOver.getStage());
+                game.useCursor(false);
+                break;
         }
     }
 
-    private void updateEnemies(float delta) {
-        for (Enemy enemy : worldBuilder.getEnemies()) {
-            enemy.update(delta);
+    public void resumeMatch() {
+        enterState(GameState.RUNNING);
+    }
+
+    public void playAgain() {
+        game.setScreen(new Match(difficulty));
+    }
+
+    public void backToMenu() {
+        game.setScreen(new MainMenu());
+    }
+
+    private boolean isPlaying() {
+        return state == GameState.RUNNING || state == GameState.TACTICAL;
+    }
+
+    /** Called by a soldier the moment it dies. */
+    public void onElimination(Soldier victim, Soldier killer) {
+        hud.onElimination(victim, killer);
+        if (killer == player && victim != player) {
+            AudioManager.playKill();
+        }
+        if (gameOverTimer >= 0) {
+            return;
+        }
+        if (victim == player) {
+            won = false;
+            placement = getAliveCount() + 1;
+            gameOverTimer = DEATH_DELAY;
+        } else if (!player.isDead() && getAliveCount() == 1) {
+            won = true;
+            placement = 1;
+            gameOverTimer = 0.6f;
         }
     }
+
+    // ---- update ----
 
     private void update(float delta) {
-        if (AUTODEMO) {
-            autodemoElapsed += delta;
-            autodemoLogTick += delta;
-            if (autodemoLogTick >= 5) {
-                autodemoLogTick = 0;
-                Gdx.app.log("DEMO", "t=" + Math.round(autodemoElapsed) + "s enemiesAlive=" + countAliveEnemies()
-                        + " playerKills=" + player.getKills() + " state=" + state);
+        if (isPlaying()) {
+            handleMatchInput();
+            stepWorld(delta);
+            player.update(delta);
+            for (Enemy enemy : worldBuilder.getEnemies()) {
+                enemy.update(delta);
             }
-            if (autodemoElapsed >= AUTODEMO_SECONDS) {
-                Gdx.app.log("DEMO", "AUTODEMO COMPLETE - enemiesAlive=" + countAliveEnemies()
-                        + " playerKills=" + player.getKills());
-                Gdx.app.exit();
+            updateBullets(delta);
+            safeZoneController.update(delta);
+            hud.update(delta);
+            progress.update(delta);
+            matchTime += delta;
+        } else if (state == GameState.PAUSED) {
+            pause.update(delta);
+        }
+        input.update();
+        updateCamera(delta);
+
+        if (gameOverTimer >= 0 && state != GameState.GAME_OVER) {
+            gameOverTimer -= delta;
+            if (gameOverTimer < 0) {
+                gameOver.show(won, placement, player.getKills(), (int) matchTime, player.getKiller());
+                enterState(GameState.GAME_OVER);
             }
         }
-        if (state == GameState.RUNNING || state == GameState.TACTICAL || state == GameState.LOOTING) {
-            world.step(1 / 60f, 6, 2);
-            safeZoneController.update(delta);
-            player.update(delta);
-            matchMap.update(delta, player.getBody().getPosition());
-            updateCamera();
-            updateBullets();
-            checkGameOverConditions();
-            updateMatchTimeCount(delta);
+        input.endFrame();
+    }
+
+    /** Fixed 60 Hz physics, so speed does not depend on the frame rate. */
+    private void stepWorld(float delta) {
+        physicsTime += Math.min(delta, 0.25f);
+        int steps = 0;
+        while (physicsTime >= STEP && steps < MAX_STEPS) {
+            world.step(STEP, 6, 2);
+            physicsTime -= STEP;
+            steps++;
+        }
+        if (steps == MAX_STEPS) {
+            physicsTime = 0;
+        }
+        world.clearForces();
+    }
+
+    private void handleMatchInput() {
+        if (InputTracker.wasPressed(InputTracker.ESC)) {
+            if (state == GameState.TACTICAL) {
+                enterState(GameState.RUNNING);
+            } else {
+                enterState(GameState.PAUSED);
+            }
+            return;
+        }
+        if (InputTracker.wasPressed(InputTracker.M)) {
+            enterState(state == GameState.TACTICAL ? GameState.RUNNING : GameState.TACTICAL);
+            return;
+        }
+        if (player.isDead() || player.isActionsBlocked()) {
+            return;
+        }
+        int[] slots = {InputTracker.NUM_1, InputTracker.NUM_2, InputTracker.NUM_3,
+                InputTracker.NUM_4, InputTracker.NUM_5, InputTracker.NUM_6};
+        for (int i = 0; i < slots.length; i++) {
+            if (InputTracker.wasPressed(slots[i])) {
+                hud.switchSelectedSlot(i);
+            }
+        }
+        if (input.getScroll() != 0) {
+            hud.switchSelectedSlot(input.getScroll() > 0);
         }
     }
 
-    private int countAliveEnemies() {
-        int alive = 0;
+    private void updateBullets(float delta) {
+        Iterator<Bullet> iterator = bullets.iterator();
+        while (iterator.hasNext()) {
+            Bullet bullet = iterator.next();
+            bullet.update(delta);
+            if (bullet.isSpent()) {
+                world.destroyBody(bullet.getBody());
+                iterator.remove();
+            }
+        }
+    }
+
+    /** Follows the player, leans toward the cursor and zooms out for longer-range weapons. */
+    private void updateCamera(float delta) {
+        Vector2 position = player.getBody().getPosition();
+        cameraTarget.set(position.x + InputTracker.getRelativeX() / 300f,
+                position.y - InputTracker.getRelativeY() / 300f);
+        // Same smoothing as lerping 5% per frame at 60 fps, at any frame rate.
+        float follow = 1f - (float) Math.pow(0.95f, delta * 60f);
+        camera.position.x = MathUtils.lerp(camera.position.x, cameraTarget.x, follow);
+        camera.position.y = MathUtils.lerp(camera.position.y, cameraTarget.y, follow);
+
+        EntityObject held = player.getInventory().getSelectedItem();
+        float targetZoom = held instanceof SniperRifle ? 2f
+                : held instanceof AssaultRifle ? 1.3f
+                : held instanceof Pistol ? 1.1f : 1f;
+        cameraZoom = MathUtils.lerp(cameraZoom, targetZoom, follow);
+        camera.zoom = cameraZoom;
+        camera.update();
+    }
+
+    /** Snaps the view to whole hundredths of a unit while drawing so unfiltered tiles do not shimmer. */
+    private void snapCamera(boolean snap) {
+        if (snap) {
+            snappedX = camera.position.x;
+            snappedY = camera.position.y;
+            camera.position.x = Math.round(camera.position.x * 100f) / 100f;
+            camera.position.y = Math.round(camera.position.y * 100f) / 100f;
+        } else {
+            camera.position.x = snappedX;
+            camera.position.y = snappedY;
+        }
+        camera.update();
+    }
+
+    // ---- render ----
+
+    @Override
+    public void render(float delta) {
+        update(delta);
+
+        Gdx.gl.glClearColor(0, 0, 0, 1);
+        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
+        snapCamera(true);
+        viewport.apply();
+        batch.setProjectionMatrix(camera.combined);
+
+        batch.begin();
+        batch.draw(waterBackground, camera.position.x - 50, camera.position.y - 50, 100, 100);
+        batch.end();
+
+        renderer.setView(camera);
+        renderer.render();
+
+        batch.begin();
+        for (Soldier soldier : worldBuilder.getSoldiers()) {
+            if (soldier.isDead()) {
+                Vector2 position = soldier.getBody().getPosition();
+                batch.draw(deadLoot, position.x - pScaleCenter(deadLoot.getWidth()),
+                        position.y - pScaleCenter(deadLoot.getHeight()),
+                        pScale(deadLoot.getWidth()), pScale(deadLoot.getHeight()));
+            }
+        }
+        for (Bullet bullet : bullets) {
+            bullet.draw(batch);
+        }
+        player.draw(batch);
         for (Enemy enemy : worldBuilder.getEnemies()) {
-            if (!enemy.isDead()) {
+            enemy.draw(batch);
+        }
+        batch.end();
+
+        overRenderer.setView(camera);
+        overRenderer.render();
+        safeZoneController.render(shapes, camera.combined);
+        snapCamera(false);
+
+        hud.draw(state != GameState.TACTICAL, state == GameState.RUNNING);
+        progress.draw();
+
+        if (state == GameState.TACTICAL) {
+            matchMap.draw();
+        } else if (state == GameState.PAUSED) {
+            pause.draw();
+        } else if (state == GameState.GAME_OVER) {
+            gameOver.draw(delta);
+        }
+    }
+
+    @Override
+    public void resize(int width, int height) {
+        viewport.update(width, height);
+        hud.getStage().getViewport().update(width, height, true);
+        progress.resize(width, height);
+        pause.getStage().getViewport().update(width, height, true);
+        gameOver.getStage().getViewport().update(width, height, true);
+        matchMap.resize(width, height);
+    }
+
+    @Override
+    public void pause() {
+        if (isPlaying()) {
+            enterState(GameState.PAUSED);
+        }
+    }
+
+    @Override
+    public void show() {
+    }
+
+    @Override
+    public void resume() {
+    }
+
+    @Override
+    public void hide() {
+    }
+
+    @Override
+    public void dispose() {
+        for (Building building : worldBuilder.getBuildings()) {
+            building.restoreCeiling();
+        }
+        world.dispose();
+        renderer.dispose();
+        overRenderer.dispose();
+        shapes.dispose();
+        hud.dispose();
+        progress.dispose();
+        pause.dispose();
+        matchMap.dispose();
+        gameOver.dispose();
+    }
+
+    // ---- accessors ----
+
+    public int getAliveCount() {
+        int alive = 0;
+        for (Soldier soldier : worldBuilder.getSoldiers()) {
+            if (!soldier.isDead()) {
                 alive++;
             }
         }
         return alive;
     }
 
-    private void lateUpdate(float delta) {
-        input.update();
-        handlePauseMenu(delta);
-        handleMatchMap(delta);
-        handleInventoryInput(delta);
-        updateLoot(delta);
-        if (state == GameState.RUNNING || state == GameState.TACTICAL || state == GameState.LOOTING) {
-            updateEnemies(delta);
-        }
+    public void addBullet(Bullet bullet) {
+        bullets.add(bullet);
     }
 
-    private void handlePauseMenu(float delta) {
-        if (InputTracker.isPressed(InputTracker.ESC)){
-            pauseMatch();
-        }
-    }
-
-    private void pauseMatch() {
-        if (state == GameState.RUNNING || state == GameState.TACTICAL || state == GameState.LOOTING) {
-            input.resetAllKeys();
-            Gdx.input.setInputProcessor(pause.getStage());
-            setCursor(resources.getPixmap(ResourceHandler.PixmapPath.MENU_CURSOR), false);
-            setState(GameState.PAUSED);
-        }
-    }
-
-    private void handleMatchMap(float delta) {
-        if (InputTracker.isPressed(InputTracker.M)){
-            if (state == GameState.RUNNING) {
-                input.resetSecondaryKeys();
-                setCursor(resources.getPixmap(ResourceHandler.PixmapPath.MENU_CURSOR), false);
-                setState(GameState.TACTICAL);
-            } else if (state == GameState.TACTICAL) {
-                input.resetSecondaryKeys();
-                setCursor(resources.getPixmap(ResourceHandler.PixmapPath.MATCH_CURSOR), true);
-                setState(GameState.RUNNING);
-            }
-        }
-    }
-
-    private void handleInventoryInput(float delta) {
-        if (!player.isActionsBlocked()) {
-            if (InputTracker.isPressed(InputTracker.NUM_1)) {
-                hud.switchSelectedSlot(0);
-            } else if (InputTracker.isPressed(InputTracker.NUM_2)) {
-                hud.switchSelectedSlot(1);
-            } else if (InputTracker.isPressed(InputTracker.NUM_3)) {
-                hud.switchSelectedSlot(2);
-            } else if (InputTracker.isPressed(InputTracker.NUM_4)) {
-                hud.switchSelectedSlot(3);
-            } else if (InputTracker.isPressed(InputTracker.NUM_5)) {
-                hud.switchSelectedSlot(4);
-            } else if (InputTracker.isPressed(InputTracker.NUM_6)) {
-                hud.switchSelectedSlot(5);
-            }
-            if (input.isScrolling() != 0) {
-                hud.switchSelectedSlot(input.isScrolling() == 1);
-                input.resetScrollAmount();
-            }
-        }
-    }
-
-    private void checkGameOverConditions() {
-        if (player.getHealth() <= 0 && !gameIsOver) {
-            gameIsOver = true;
-            input.resetAllKeys();
-            Gdx.input.setInputProcessor(gameOver.getStage());
-            setCursor(resources.getPixmap(ResourceHandler.PixmapPath.MENU_CURSOR), false);
-            gameOver.setWinner(false);
-            gameOver.forgeGameOverScreen();
-            setState(GameState.GAME_OVER);
-        } else {
-            int enemiesAlive = worldBuilder.getEnemies().size();
-            for (Enemy enemy: worldBuilder.getEnemies()) {
-                if (enemy.isDead()) {
-                    enemiesAlive--;
-                }
-            }
-            if (enemiesAlive == 0) {
-                gameIsOver = true;
-                input.resetAllKeys();
-                Gdx.input.setInputProcessor(gameOver.getStage());
-                setCursor(resources.getPixmap(ResourceHandler.PixmapPath.MENU_CURSOR), false);
-                gameOver.setWinner(true);
-                gameOver.forgeGameOverScreen();
-                setState(GameState.GAME_OVER);
-            }
-        }
-    }
-
-    private void updateMatchTimeCount(float delta) {
-        matchTimeCount += delta;
-        if (matchTimeCount >= 1) {
-            matchDuration++;
-            matchTimeCount = 0;
-        }
+    public Difficulty getDifficulty() {
+        return difficulty;
     }
 
     public ResourceHandler getResources() {
@@ -369,10 +469,6 @@ public class Match implements Screen {
         return player;
     }
 
-    public ArrayList<Bullet> getBullets() {
-        return bullets;
-    }
-
     public SafeZoneController getSafeZoneController() {
         return safeZoneController;
     }
@@ -385,214 +481,7 @@ public class Match implements Screen {
         return camera;
     }
 
-    public int getMatchDuration() {
-        return matchDuration;
-    }
-
-    private void renderPauseMenu(float delta) {
-        batch.setProjectionMatrix(pause.getStage().getCamera().combined);
-        pause.getStage().draw();
-    }
-
-    private void renderLootInterface(float delta) {
-        batch.setProjectionMatrix(loot.getStage().getCamera().combined);
-        loot.getStage().draw();
-    }
-
-    private void renderMap(float delta) {
-        batch.setProjectionMatrix(matchMap.getStage().getCamera().combined);
-        matchMap.getStage().draw();
-    }
-
-    private void renderGameOver(float delta) {
-        batch.setProjectionMatrix(gameOver.getStage().getCamera().combined);
-        gameOver.getStage().draw();
-    }
-
-    public void setState(GameState state) {
-        this.state = state;
-    }
-
     public GameState getState() {
         return state;
-    }
-
-    public void delegateInputProcessor() {
-        Gdx.input.setInputProcessor(input);
-    }
-
-    public void setCursor(Pixmap pixmap, boolean isCentered) {
-        Gdx.graphics.setCursor(Gdx.graphics.newCursor(pixmap,
-                isCentered ? pCenter(pixmap.getWidth()) : 0,
-                isCentered ? pCenter(pixmap.getHeight()) : 0));
-    }
-
-    private void updateLoot(float delta) {
-        for (Loot loot : worldBuilder.getLoot()) {
-            loot.update(delta);
-        }
-    }
-
-    public void addBullet(Bullet bullet) {
-        bullets.add(bullet);
-    }
-
-    @Override
-    public void show() {
-
-    }
-
-    private void renderBackgroundColor() {
-        Gdx.gl.glClearColor(0, 0, 0, 1);
-        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
-    }
-
-    private void renderVoid() {
-        batch.begin();
-        batch.draw(
-                waterBackground,
-                pCenter(GAME_WIDTH) - 5000,
-                pCenter(GAME_HEIGHT) - 5000,
-                10000, 10000
-        );
-        batch.end();
-    }
-
-    private void renderCollisionDebug() {
-        if (DEBUG_MODE) {
-            collisionDebugRenderer.render(world, camera.combined);
-        }
-    }
-
-    private void renderPlayer() {
-        batch.begin();
-        player.draw(batch);
-        batch.end();
-    }
-
-    private void renderEnemies() {
-        batch.begin();
-        for (Enemy enemy : worldBuilder.getEnemies()) {
-            enemy.draw(batch);
-        }
-        batch.end();
-    }
-
-    private void renderHud(float delta) {
-        batch.setProjectionMatrix(hud.getStage().getCamera().combined);
-        hud.drawVignette(delta);
-        hud.drawHealthBars(delta, player.getHealth(), player.getArmor());
-        hud.getStage().draw();
-        hud.drawStaminaBar(delta, player.getStamina(), player.getMaxStamina());
-        hud.updateHealthBars(delta, player.getHealth(), player.getArmor());
-        hud.updateAmmoIndicator(delta, player.getInventory());
-        hud.updateEnemyStatus(delta, worldBuilder);
-        hud.updateInventory(delta);
-        if (state != GameState.TACTICAL) {
-            hud.drawMinimap(delta, player.getBody().getPosition());
-        }
-        if (state == GameState.RUNNING || state == GameState.LOOTING) {
-            hud.drawNearbyLoot(delta);
-        }
-    }
-
-    private void renderProgressDisplay(float delta) {
-        if (player.getInventory().isSelectedBeingUsed()) {
-            batch.setProjectionMatrix(progress.getStage().getCamera().combined);
-            progress.getStage().draw();
-            if (state != GameState.PAUSED && state != GameState.GAME_OVER) {
-                progress.fillProgressBar(delta);
-            }
-        }
-    }
-
-    private void renderInterface(float delta) {
-        if (state == GameState.PAUSED) {
-            renderPauseMenu(delta);
-            pause.update(delta);
-        } else if (state == GameState.TACTICAL) {
-            renderMap(delta);
-        } else if (state == GameState.LOOTING) {
-            renderLootInterface(delta);
-            loot.update(delta);
-        } else if (state == GameState.GAME_OVER) {
-            renderGameOver(delta);
-        }
-    }
-
-    private void renderDeadLoots(float delta) {
-        batch.begin();
-        for (Enemy enemy : worldBuilder.getEnemies()) {
-            if (enemy.isDead()) {
-                batch.draw(deadLoot, enemy.getBody().getPosition().x - pScaleCenter(deadLoot.getWidth()),
-                        enemy.getBody().getPosition().y - pScaleCenter(deadLoot.getHeight()),
-                        pScale(deadLoot.getWidth()), pScale(deadLoot.getHeight()));
-            }
-        }
-        if (player.isDead()) {
-            batch.draw(deadLoot, player.getBody().getPosition().x - pScaleCenter(deadLoot.getWidth()),
-                    player.getBody().getPosition().y - pScaleCenter(deadLoot.getHeight()),
-                    pScale(deadLoot.getWidth()), pScale(deadLoot.getHeight()));
-        }
-        batch.end();
-    }
-
-    private void renderBullets(float delta) {
-        batch.begin();
-        for (Bullet bullet : bullets) {
-            bullet.draw(getBatch());
-        }
-        batch.end();
-    }
-
-    @Override
-    public void render(float delta) {
-        update(delta);
-        renderBackgroundColor();
-        renderVoid();
-        renderer.render();
-        renderCollisionDebug();
-        batch.setProjectionMatrix(camera.combined);
-        renderDeadLoots(delta);
-        renderBullets(delta);
-        renderPlayer();
-        renderEnemies();
-        overRenderer.render();
-        safeZoneController.render(delta);
-        renderHud(delta);
-        renderProgressDisplay(delta);
-        renderInterface(delta);
-        lateUpdate(delta);
-    }
-
-    @Override
-    public void resize(int width, int height) {
-        viewport.update(width, height);
-    }
-
-    @Override
-    public void pause() {
-        if (AUTODEMO) {
-            return;
-        }
-        pauseMatch();
-    }
-
-    @Override
-    public void resume() {
-
-    }
-
-    @Override
-    public void hide() {
-
-    }
-
-    @Override
-    public void dispose() {
-        renderer.dispose();
-        world.dispose();
-        collisionDebugRenderer.dispose();
-        resources.dispose();
     }
 }

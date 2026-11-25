@@ -8,148 +8,88 @@ import java.util.ArrayList;
 import java.util.Collections;
 
 /**
- * Instant, frictionless pickup helper (Section 3/2 of the V6 gameplay redesign).
- * Walks over a pile of ground items and places every collectable item straight
- * into a soldier's inventory - no interaction key, no timed transform.
- * Weapons are prepared instantly: full magazine, no ammo boxes required.
+ * Moves items from a pile (a crate, a chest, a corpse) into a soldier's inventory.
+ * Anything the soldier swaps out goes back onto the pile, so nothing disappears.
  */
 public final class LootPickup {
 
     private LootPickup() { }
 
-    public static void collect(Inventory inventory, ArrayList<EntityObject> items) {
-        Collections.sort(items);
-        for (int i = 0; i < items.size(); i++) {
-            EntityObject item = items.get(i);
-            if (item.getClass() == Empty.class) {
-                continue;
-            }
-            if (item instanceof Helmet) {
-                if (tryEquip(inventory, 0, item)) {
-                    items.set(i, new Empty(inventory.getMatch()));
-                }
-            } else if (item instanceof Armor) {
-                if (tryEquip(inventory, 1, item)) {
-                    items.set(i, new Empty(inventory.getMatch()));
-                }
-            } else if (item instanceof Weapon
-                    && tryRefillDuplicateWeapon(inventory, (Weapon) item)) {
-                // Same weapon already held — ammo topped up, consume the ground copy
-                items.set(i, new Empty(inventory.getMatch()));
-            } else if (tryAddToFreeSlot(inventory, item)) {
-                items.set(i, new Empty(inventory.getMatch()));
-            } else if (item instanceof Weapon && trySwapWeapon(inventory, item)) {
-                items.set(i, new Empty(inventory.getMatch()));
+    /** Takes everything useful from the pile, best items first. */
+    public static void collect(Inventory inventory, ArrayList<EntityObject> pile) {
+        Collections.sort(pile);
+        for (int i = 0; i < pile.size(); i++) {
+            EntityObject item = pile.get(i);
+            if (!(item instanceof Empty)) {
+                pile.set(i, take(inventory, item, false));
             }
         }
     }
 
-    /**
-     * Collects a single specific item chosen by the player (PUBG style).
-     * Transfers item to player's inventory/equipment and clears it from sourceList.
-     */
-    public static boolean collectSingle(Inventory inventory, EntityObject item, ArrayList<EntityObject> sourceList) {
-        if (item == null || item.getClass() == Empty.class) {
+    /** Takes one item the player picked from the loot panel. Returns true if anything changed. */
+    public static boolean collectSingle(Inventory inventory, EntityObject item, ArrayList<EntityObject> pile) {
+        int index = pile.indexOf(item);
+        if (index < 0 || item instanceof Empty) {
             return false;
         }
-
-        boolean collected = false;
-        if (item instanceof Helmet) {
-            collected = tryEquip(inventory, 0, item);
-        } else if (item instanceof Armor) {
-            collected = tryEquip(inventory, 1, item);
-        } else if (item instanceof Weapon
-                && tryRefillDuplicateWeapon(inventory, (Weapon) item)) {
-            collected = true;
-        } else if (tryAddToFreeSlot(inventory, item)) {
-            collected = true;
-        } else if (item instanceof Weapon) {
-            // Swap with selected slot if inventory is full
-            int selectedSlot = inventory.getMatch().getHud().getSelectedSlot();
-            EntityObject oldItem = inventory.getItems().get(selectedSlot);
-            inventory.getItems().set(selectedSlot, item);
-            identifyItem(item);
-            // Replace ground item with swapped item or empty
-            int idx = sourceList.indexOf(item);
-            if (idx != -1) {
-                sourceList.set(idx, oldItem);
-            }
-            return true;
-        }
-
-        if (collected) {
-            int idx = sourceList.indexOf(item);
-            if (idx != -1) {
-                sourceList.set(idx, new Empty(inventory.getMatch()));
-            }
-            return true;
-        }
-        return false;
-    }
-
-    private static boolean tryEquip(Inventory inventory, int equipmentSlot, EntityObject item) {
-        ArrayList<EntityObject> equipment = inventory.getEquipmentItems();
-        if (equipment.get(equipmentSlot).getClass() == Empty.class) {
-            equipment.set(equipmentSlot, item);
-            identifyItem(item);
-            return true;
-        }
-        if (item.getRarity() < equipment.get(equipmentSlot).getRarity()) {
-            equipment.set(equipmentSlot, item);
-            identifyItem(item);
-            return true;
-        }
-        return false;
+        EntityObject left = take(inventory, item, true);
+        pile.set(index, left);
+        return left != item;
     }
 
     /**
-     * If the inventory already contains the same weapon class as {@code incoming},
-     * top up that weapon's magazine to full capacity and return true.
-     * The incoming ground item is consumed by the caller.
+     * Puts the item into the inventory if it improves it and returns what is left for the pile:
+     * an Empty, the replaced item, or the item itself when it was not taken.
+     * With {@code forceSwap} a full inventory trades the held slot for the item.
      */
-    private static boolean tryRefillDuplicateWeapon(Inventory inventory, Weapon incoming) {
-        for (EntityObject held : inventory.getItems()) {
-            if (held.getClass() == incoming.getClass() && held instanceof Weapon) {
-                Weapon heldWeapon = (Weapon) held;
-                heldWeapon.setBullets(heldWeapon.getMagCapacity());
-                return true;
+    private static EntityObject take(Inventory inventory, EntityObject item, boolean forceSwap) {
+        if (item instanceof Helmet || item instanceof Armor) {
+            int slot = item instanceof Helmet ? Inventory.HELMET : Inventory.VEST;
+            EntityObject worn = inventory.getEquipmentItems().get(slot);
+            if (forceSwap || armorPoints(item) > armorPoints(worn)) {
+                inventory.getEquipmentItems().set(slot, item);
+                return worn;
             }
+            return item;
         }
-        return false;
-    }
-
-    private static boolean tryAddToFreeSlot(Inventory inventory, EntityObject item) {
-        for (int i = 0; i < inventory.getItems().size(); i++) {
-            if (inventory.getItems().get(i).getClass() == Empty.class) {
-                inventory.getItems().set(i, item);
-                identifyItem(item);
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static boolean trySwapWeapon(Inventory inventory, EntityObject item) {
-        for (int i = 0; i < inventory.getItems().size(); i++) {
-            EntityObject held = inventory.getItems().get(i);
-            if (held instanceof Weapon && item.getRarity() < held.getRarity()) {
-                inventory.getItems().set(i, item);
-                identifyItem(item);
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static void identifyItem(EntityObject item) {
         if (item instanceof Weapon) {
-            ((Weapon) item).setBullets(((Weapon) item).getMagCapacity());
+            for (EntityObject held : inventory.getItems()) {
+                if (held.getClass() == item.getClass()) {
+                    // A second copy of a held gun is just a full magazine.
+                    ((Weapon) held).fillMagazine();
+                    return new Empty(inventory.getMatch());
+                }
+            }
+            ((Weapon) item).fillMagazine();
         }
+        for (int i = 0; i < inventory.getItems().size(); i++) {
+            if (inventory.getItems().get(i) instanceof Empty) {
+                inventory.getItems().set(i, item);
+                return new Empty(inventory.getMatch());
+            }
+        }
+        if (forceSwap) {
+            int selected = inventory.getSelectedIndex();
+            EntityObject held = inventory.getItems().get(selected);
+            inventory.getItems().set(selected, item);
+            return held;
+        }
+        return item;
+    }
+
+    private static int armorPoints(EntityObject item) {
+        if (item instanceof Helmet) {
+            return ((Helmet) item).getArmorPoints();
+        }
+        if (item instanceof Armor) {
+            return ((Armor) item).getArmorPoints();
+        }
+        return 0;
     }
 
     public static boolean hasItems(ArrayList<EntityObject> items) {
         for (EntityObject item : items) {
-            if (item.getClass() != Empty.class) {
+            if (!(item instanceof Empty)) {
                 return true;
             }
         }

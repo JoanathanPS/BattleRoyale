@@ -2,63 +2,67 @@ package com.joanathanps.battlearena.graphics;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
+import com.badlogic.gdx.utils.ObjectMap;
 
-public class FontGenerator {
+/**
+ * Rasterizes TTF fonts on first use and hands out the same BitmapFont afterwards.
+ * Fonts are shared, so callers must never dispose them; the game disposes all of them on exit.
+ */
+public final class FontGenerator {
 
-    /**
-     * Generates a BitmapFont with an optional drop shadow.
-     *
-     * @param fontPath  the font file to use
-     * @param size      point size (before any post-generation scaling)
-     * @param hasShadow whether to add a drop shadow
-     */
+    private static final ObjectMap<String, BitmapFont> cache = new ObjectMap<String, BitmapFont>();
+
+    private FontGenerator() { }
+
     public static BitmapFont generate(ResourceHandler.FontPath fontPath, int size, boolean hasShadow) {
-        return generate(fontPath, size, hasShadow, 2);
-    }
-
-    /**
-     * Generates a BitmapFont with an optional drop shadow of configurable pixel offset.
-     *
-     * @param fontPath      the font file to use
-     * @param size          point size (before any post-generation scaling)
-     * @param hasShadow     whether to add a drop shadow
-     * @param shadowOffset  pixel offset for the shadow (both X and Y)
-     */
-    public static BitmapFont generate(ResourceHandler.FontPath fontPath, int size,
-                                      boolean hasShadow, int shadowOffset) {
-        FreeTypeFontGenerator generator = new FreeTypeFontGenerator(Gdx.files.internal(fontPath.path));
-        FreeTypeFontGenerator.FreeTypeFontParameter parameter = new FreeTypeFontGenerator.FreeTypeFontParameter();
-        parameter.size = size;
-        if (hasShadow) {
-            parameter.shadowColor = new Color(0f, 0f, 0f, 0.85f);
-            parameter.shadowOffsetX = shadowOffset;
-            parameter.shadowOffsetY = -shadowOffset;
+        String key = fontPath.name() + "|" + size + "|" + hasShadow;
+        BitmapFont font = cache.get(key);
+        if (font == null) {
+            FreeTypeFontGenerator.FreeTypeFontParameter parameter = new FreeTypeFontGenerator.FreeTypeFontParameter();
+            parameter.size = size;
+            if (hasShadow) {
+                parameter.shadowColor = new Color(0f, 0f, 0f, 0.85f);
+                parameter.shadowOffsetX = 2;
+                parameter.shadowOffsetY = -2;
+            }
+            font = build(fontPath, parameter);
+            cache.put(key, font);
         }
+        return font;
+    }
+
+    /** A font with a dark outline, for text drawn over the game world. */
+    public static BitmapFont generateOutlined(ResourceHandler.FontPath fontPath, int size, float borderWidth) {
+        String key = fontPath.name() + "|" + size + "|outline" + borderWidth;
+        BitmapFont font = cache.get(key);
+        if (font == null) {
+            FreeTypeFontGenerator.FreeTypeFontParameter parameter = new FreeTypeFontGenerator.FreeTypeFontParameter();
+            parameter.size = size;
+            parameter.borderWidth = borderWidth;
+            parameter.borderColor = new Color(0f, 0f, 0f, 0.9f);
+            parameter.minFilter = Texture.TextureFilter.Linear;
+            parameter.magFilter = Texture.TextureFilter.Linear;
+            font = build(fontPath, parameter);
+            cache.put(key, font);
+        }
+        return font;
+    }
+
+    private static BitmapFont build(ResourceHandler.FontPath fontPath,
+                                    FreeTypeFontGenerator.FreeTypeFontParameter parameter) {
+        FreeTypeFontGenerator generator = new FreeTypeFontGenerator(Gdx.files.internal(fontPath.path));
         BitmapFont font = generator.generateFont(parameter);
         generator.dispose();
         return font;
     }
 
-    /**
-     * Generates a BitmapFont with an outline border and optional drop shadow.
-     */
-    public static BitmapFont generateWithBorder(ResourceHandler.FontPath fontPath, int size,
-                                                float borderWidth, Color borderColor,
-                                                int shadowOffsetX, int shadowOffsetY, Color shadowColor) {
-        FreeTypeFontGenerator generator = new FreeTypeFontGenerator(Gdx.files.internal(fontPath.path));
-        FreeTypeFontGenerator.FreeTypeFontParameter parameter = new FreeTypeFontGenerator.FreeTypeFontParameter();
-        parameter.size = size;
-        parameter.borderWidth = borderWidth;
-        parameter.borderColor = borderColor;
-        parameter.shadowOffsetX = shadowOffsetX;
-        parameter.shadowOffsetY = shadowOffsetY;
-        parameter.shadowColor = shadowColor;
-        parameter.minFilter = com.badlogic.gdx.graphics.Texture.TextureFilter.Linear;
-        parameter.magFilter = com.badlogic.gdx.graphics.Texture.TextureFilter.Linear;
-        BitmapFont font = generator.generateFont(parameter);
-        generator.dispose();
-        return font;
+    public static void disposeAll() {
+        for (BitmapFont font : cache.values()) {
+            font.dispose();
+        }
+        cache.clear();
     }
 }

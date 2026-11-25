@@ -25,7 +25,7 @@ public class HalfHelmet extends Helmet {
         setIcon(getResources().getTexture(ResourceHandler.TexturePath.HALF_HELMET));
         setArmorPoints(30);
         takeDamage(0);
-        setRarity(9);
+        setTier(1);
         updateName();
     }
 }

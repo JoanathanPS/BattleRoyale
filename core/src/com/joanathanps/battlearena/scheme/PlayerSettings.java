@@ -2,48 +2,45 @@ package com.joanathanps.battlearena.scheme;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Preferences;
-import com.joanathanps.battlearena.languages.Internationalization;
 
+/** Settings saved between sessions (desktop preferences file, or browser local storage on the web). */
 public final class PlayerSettings {
 
     private PlayerSettings() { }
 
-    public static final int GAME_WIDTH  = 1280;
+    /** The UI is laid out on this canvas and scaled to the window. */
+    public static final int GAME_WIDTH = 1280;
     public static final int GAME_HEIGHT = 720;
-    public static final boolean DEBUG_MODE = false;
 
-    private static final String PREFS          = "player-settings";
+    public static final int NAME_MAX_LENGTH = 16;
+    private static final String DEFAULT_NAME = "Player";
+
+    private static final String PREFS = "battle-royale-lite";
     private static final String KEY_FULLSCREEN = "fullscreen";
-    private static final String KEY_LANGUAGE   = "language";
     private static final String KEY_RESOLUTION = "resolution";
+    private static final String KEY_NAME = "name";
+    private static final String KEY_DIFFICULTY = "difficulty";
 
-    // -----------------------------------------------------------------------
-    // Resolution
-    // -----------------------------------------------------------------------
-
-    /** Supported window resolutions. Default is 1280×720. */
     public enum Resolution {
-        R_800x600  (800,  600,  "800 × 600"),
-        R_1280x720 (1280, 720,  "1280 × 720"),
-        R_1600x900 (1600, 900,  "1600 × 900"),
-        R_1920x1080(1920, 1080, "1920 × 1080");
+        R_1280x720(1280, 720, "1280 x 720"),
+        R_1600x900(1600, 900, "1600 x 900"),
+        R_1920x1080(1920, 1080, "1920 x 1080");
 
         public final int w;
         public final int h;
         public final String label;
 
         Resolution(int w, int h, String label) {
-            this.w     = w;
-            this.h     = h;
+            this.w = w;
+            this.h = h;
             this.label = label;
         }
     }
 
     public static Resolution getResolution() {
         try {
-            return Resolution.valueOf(prefs().getString(KEY_RESOLUTION,
-                    Resolution.R_1280x720.name()));
-        } catch (Exception e) {
+            return Resolution.valueOf(prefs().getString(KEY_RESOLUTION, Resolution.R_1280x720.name()));
+        } catch (IllegalArgumentException e) {
             return Resolution.R_1280x720;
         }
     }
@@ -51,10 +48,6 @@ public final class PlayerSettings {
     public static void setResolution(Resolution resolution) {
         prefs().putString(KEY_RESOLUTION, resolution.name()).flush();
     }
-
-    // -----------------------------------------------------------------------
-    // Fullscreen
-    // -----------------------------------------------------------------------
 
     public static boolean getFullscreen() {
         return prefs().getBoolean(KEY_FULLSCREEN, false);
@@ -64,26 +57,42 @@ public final class PlayerSettings {
         prefs().putBoolean(KEY_FULLSCREEN, fullscreen).flush();
     }
 
-    // -----------------------------------------------------------------------
-    // Language
-    // -----------------------------------------------------------------------
+    /** The name shown above your soldier, in the kill feed and on the leaderboard. */
+    public static String getPlayerName() {
+        String name = cleanName(prefs().getString(KEY_NAME, ""));
+        return name.isEmpty() ? DEFAULT_NAME : name;
+    }
 
-    public static Internationalization.Language getLanguage() {
+    public static void setPlayerName(String name) {
+        prefs().putString(KEY_NAME, cleanName(name)).flush();
+    }
+
+    /** Letters, digits, spaces, '-' and '_', trimmed to {@link #NAME_MAX_LENGTH}. */
+    public static String cleanName(String raw) {
+        if (raw == null) {
+            return "";
+        }
+        StringBuilder clean = new StringBuilder();
+        for (int i = 0; i < raw.length() && clean.length() < NAME_MAX_LENGTH; i++) {
+            char c = raw.charAt(i);
+            if (Character.isLetterOrDigit(c) || c == ' ' || c == '-' || c == '_') {
+                clean.append(c);
+            }
+        }
+        return clean.toString().trim();
+    }
+
+    public static Difficulty getDifficulty() {
         try {
-            return Internationalization.Language.valueOf(prefs().getString(KEY_LANGUAGE,
-                    Internationalization.Language.ENGLISH.name()));
-        } catch (Exception e) {
-            return Internationalization.Language.ENGLISH;
+            return Difficulty.valueOf(prefs().getString(KEY_DIFFICULTY, Difficulty.MEDIUM.name()));
+        } catch (IllegalArgumentException e) {
+            return Difficulty.MEDIUM;
         }
     }
 
-    public static void setLanguage(Internationalization.Language language) {
-        prefs().putString(KEY_LANGUAGE, language.name()).flush();
+    public static void setDifficulty(Difficulty difficulty) {
+        prefs().putString(KEY_DIFFICULTY, difficulty.name()).flush();
     }
-
-    // -----------------------------------------------------------------------
-    // Helpers
-    // -----------------------------------------------------------------------
 
     private static Preferences prefs() {
         return Gdx.app.getPreferences(PREFS);

@@ -13,7 +13,7 @@ public abstract class EntityObject implements Comparable<EntityObject>{
     private Texture icon;
     private ResourceHandler resources;
     private Internationalization i18n;
-    private int rarity;
+    private int tier;
 
     public EntityObject(Match match) {
         this.match = match;
@@ -55,16 +55,18 @@ public abstract class EntityObject implements Comparable<EntityObject>{
         return match;
     }
 
-    public int getRarity() {
-        return rarity;
+    /** Higher is better. Used to decide whether a found item is worth swapping for a held one. */
+    public int getTier() {
+        return tier;
     }
 
-    public void setRarity(int rarity) {
-        this.rarity = rarity;
+    protected void setTier(int tier) {
+        this.tier = tier;
     }
 
+    /** Sorts best items first. */
     @Override
     public int compareTo(EntityObject o) {
-        return Integer.compare(this.getRarity(), o.getRarity());
+        return Integer.compare(o.getTier(), this.getTier());
     }
 }

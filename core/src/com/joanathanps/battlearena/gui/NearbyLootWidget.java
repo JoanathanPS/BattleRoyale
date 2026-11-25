@@ -7,7 +7,6 @@ import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
-import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.Disposable;
@@ -18,6 +17,7 @@ import com.joanathanps.battlearena.entities.objects.EntityObject;
 import com.joanathanps.battlearena.entities.objects.LootPickup;
 import com.joanathanps.battlearena.entities.objects.weapons.Weapon;
 import com.joanathanps.battlearena.entities.tiles.Loot;
+import com.joanathanps.battlearena.events.WaypointNavigator;
 import com.joanathanps.battlearena.graphics.FontGenerator;
 import com.joanathanps.battlearena.graphics.ResourceHandler;
 import com.joanathanps.battlearena.scenes.Match;
@@ -29,9 +29,8 @@ import static com.joanathanps.battlearena.scheme.PlayerSettings.GAME_HEIGHT;
 import static com.joanathanps.battlearena.scheme.PlayerSettings.GAME_WIDTH;
 
 /**
- * PUBG-Style Nearby Loot interactive UI panel.
- * Appears on the right side of the screen when standing near crates, chests, or dead bodies.
- * Allows navigating items with Up/Down and pressing ENTER (or clicking) to pick up.
+ * Nearby loot panel. Appears on the right when the player stands next to a crate, chest or body.
+ * Up/Down picks an item; E, F, Enter or a click takes it.
  */
 public class NearbyLootWidget implements Disposable {
 
@@ -39,7 +38,7 @@ public class NearbyLootWidget implements Disposable {
     private final BitmapFont titleFont;
     private final BitmapFont itemFont;
     private final BitmapFont tipFont;
-    private final GlyphLayout layout = new GlyphLayout();
+    private final Vector2 pointer = new Vector2();
 
     private final Texture pixelTex;
     private int selectedIndex = 0;
@@ -58,12 +57,8 @@ public class NearbyLootWidget implements Disposable {
     public NearbyLootWidget(Match match) {
         this.match = match;
 
-        titleFont = FontGenerator.generateWithBorder(
-                ResourceHandler.FontPath.BOMBARD, 20, 1.2f, Color.BLACK, 0, 0, Color.CLEAR
-        );
-        itemFont = FontGenerator.generateWithBorder(
-                ResourceHandler.FontPath.BOMBARD, 16, 1.0f, Color.BLACK, 0, 0, Color.CLEAR
-        );
+        titleFont = FontGenerator.generateOutlined(ResourceHandler.FontPath.BOMBARD, 20, 1.2f);
+        itemFont = FontGenerator.generateOutlined(ResourceHandler.FontPath.BOMBARD, 16, 1.0f);
         tipFont = FontGenerator.generate(ResourceHandler.FontPath.BOMBARD, 12, false);
 
         Pixmap pixmap = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
@@ -85,7 +80,7 @@ public class NearbyLootWidget implements Disposable {
 
         // 1. Check crates and chests (close proximity + no walls in between)
         if (match.getWorldBuilder() != null) {
-            com.joanathanps.battlearena.events.WaypointNavigator nav = match.getWorldBuilder().getWaypointNavigator();
+            WaypointNavigator nav = match.getWorldBuilder().getWaypointNavigator();
 
             for (Loot loot : match.getWorldBuilder().getLoot()) {
                 Vector2 lootPos = loot.getBody().getPosition();
@@ -147,44 +142,61 @@ public class NearbyLootWidget implements Disposable {
             collectSelected();
         }
 
-        // Mouse click on items
         boolean isMouseDown = Gdx.input.isButtonPressed(Input.Buttons.LEFT);
-        if (isMouseDown && !wasMouseDown) {
-            float mouseX = Gdx.input.getX() * (GAME_WIDTH / (float) Gdx.graphics.getWidth());
-            float mouseY = (Gdx.graphics.getHeight() - Gdx.input.getY()) * (GAME_HEIGHT / (float) Gdx.graphics.getHeight());
-
-            float panelH = 50f + nearbyItems.size() * ROW_H + 25f;
-            float panelY = GAME_HEIGHT / 2f - panelH / 2f;
-
-            if (mouseX >= PANEL_X && mouseX <= PANEL_X + PANEL_W) {
-                float startY = panelY + panelH - 50f - ROW_H;
-                for (int i = 0; i < nearbyItems.size(); i++) {
-                    float rowY = startY - i * ROW_H;
-                    if (mouseY >= rowY && mouseY <= rowY + ROW_H) {
-                        selectedIndex = i;
-                        collectSelected();
-                        break;
-                    }
+        if (isMouseDown && !wasMouseDown && isPointerOver()) {
+            Vector2 mouse = pointer();
+            float startY = panelY() + panelHeight() - 46f - ROW_H;
+            for (int i = 0; i < nearbyItems.size(); i++) {
+                float rowY = startY - i * ROW_H;
+                if (mouse.y >= rowY && mouse.y <= rowY + ROW_H) {
+                    selectedIndex = i;
+                    collectSelected();
+                    break;
                 }
             }
         }
         wasMouseDown = isMouseDown;
     }
 
+    private float panelHeight() {
+        return 50f + nearbyItems.size() * ROW_H + 25f;
+    }
+
+    private float panelY() {
+        return GAME_HEIGHT / 2f - panelHeight() / 2f;
+    }
+
+    /** Cursor in HUD coordinates. */
+    private Vector2 pointer() {
+        pointer.set(Gdx.input.getX(), Gdx.input.getY());
+        return match.getHud().getStage().getViewport().unproject(pointer);
+    }
+
+    /** True while the panel is open and the cursor is over it, so a click loots instead of shooting. */
+    public boolean isPointerOver() {
+        if (!isVisible) {
+            return false;
+        }
+        Vector2 mouse = pointer();
+        return mouse.x >= PANEL_X && mouse.x <= PANEL_X + PANEL_W
+                && mouse.y >= panelY() && mouse.y <= panelY() + panelHeight();
+    }
+
     private void collectSelected() {
         if (selectedIndex >= 0 && selectedIndex < nearbyItems.size()) {
             EntityObject item = nearbyItems.get(selectedIndex);
             ArrayList<EntityObject> container = parentContainers.get(selectedIndex);
-            LootPickup.collectSingle(match.getPlayer().getInventory(), item, container);
-            AudioManager.playLoot();
+            if (LootPickup.collectSingle(match.getPlayer().getInventory(), item, container)) {
+                AudioManager.playLoot();
+            }
         }
     }
 
     public void draw(Batch batch) {
         if (!isVisible || nearbyItems.isEmpty()) return;
 
-        float panelH = 50f + nearbyItems.size() * ROW_H + 25f;
-        float panelY = GAME_HEIGHT / 2f - panelH / 2f;
+        float panelH = panelHeight();
+        float panelY = panelY();
 
         batch.begin();
 
@@ -196,7 +208,7 @@ public class NearbyLootWidget implements Disposable {
         batch.setColor(0.15f, 0.15f, 0.18f, 0.95f);
         batch.draw(pixelTex, PANEL_X, panelY + panelH - 36f, PANEL_W, 36f);
 
-        // Gold top accent line
+        // Accent line
         batch.setColor(1f, 0.84f, 0f, 1f);
         batch.draw(pixelTex, PANEL_X, panelY + panelH - 2f, PANEL_W, 2f);
 
@@ -205,7 +217,7 @@ public class NearbyLootWidget implements Disposable {
         titleFont.draw(batch, "NEARBY LOOT", PANEL_X + 12f, panelY + panelH - 12f);
 
         // Tip text
-        tipFont.setColor(new Color(0.7f, 0.7f, 0.7f, 1f));
+        tipFont.setColor(0.7f, 0.7f, 0.7f, 1f);
         tipFont.draw(batch, "[Up/Down] Select  [Enter/E] Loot", PANEL_X + 12f, panelY + 16f);
 
         // 2. Draw Item Rows
@@ -217,7 +229,7 @@ public class NearbyLootWidget implements Disposable {
 
             // Row background
             if (isSelected) {
-                // PUBG yellow/gold highlighted row
+                // Highlighted row
                 batch.setColor(1f, 0.8f, 0.1f, 0.85f);
                 batch.draw(pixelTex, PANEL_X + 4f, rowY + 2f, PANEL_W - 8f, ROW_H - 4f);
 
@@ -252,9 +264,6 @@ public class NearbyLootWidget implements Disposable {
 
     @Override
     public void dispose() {
-        titleFont.dispose();
-        itemFont.dispose();
-        tipFont.dispose();
         pixelTex.dispose();
     }
 }

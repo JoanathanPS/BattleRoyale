@@ -25,7 +25,7 @@ public class MilitaryVest extends Armor {
         setIcon(getResources().getTexture(ResourceHandler.TexturePath.MILITARY_VEST));
         setArmorPoints(40);
         takeDamage(0);
-        setRarity(6);
+        setTier(2);
         updateName();
     }
 }

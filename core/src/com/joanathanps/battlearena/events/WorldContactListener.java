@@ -1,152 +1,115 @@
 package com.joanathanps.battlearena.events;
 
-import com.badlogic.gdx.physics.box2d.*;
+import com.badlogic.gdx.physics.box2d.Contact;
+import com.badlogic.gdx.physics.box2d.ContactImpulse;
+import com.badlogic.gdx.physics.box2d.ContactListener;
+import com.badlogic.gdx.physics.box2d.Fixture;
+import com.badlogic.gdx.physics.box2d.Manifold;
 import com.joanathanps.battlearena.audio.AudioManager;
 import com.joanathanps.battlearena.entities.Enemy;
+import com.joanathanps.battlearena.entities.Soldier;
 import com.joanathanps.battlearena.entities.projectiles.Bullet;
 import com.joanathanps.battlearena.entities.tiles.InteractiveTile;
 import com.joanathanps.battlearena.scenes.Match;
 
 import static com.joanathanps.battlearena.scheme.PhysicsAdapter.*;
 
+/** Routes Box2D contacts to game logic: bullet hits, loot and building triggers, corpse looting. */
 public class WorldContactListener implements ContactListener {
 
-    private Match match;
+    private final Match match;
 
     public WorldContactListener(Match match) {
         this.match = match;
     }
 
-    private void sendContactMessage(Contact contact, boolean isEndingContact) {
-        Fixture fixtureA = contact.getFixtureA();
-        Fixture fixtureB = contact.getFixtureB();
-
-        int combination = fixtureA.getFilterData().categoryBits | fixtureB.getFilterData().categoryBits;
-
-        switch (combination){
-            case PLAYER_TAG | BUILDING_TAG:
-            case PLAYER_TAG | LOOT_TAG:
-                if(fixtureA.getFilterData().categoryBits == PLAYER_TAG) {
-                    if (!isEndingContact) {
-                        ((InteractiveTile) fixtureB.getUserData()).onPlayerEnter();
-                    } else {
-                        ((InteractiveTile) fixtureB.getUserData()).onPlayerLeave();
-                    }
-                } else {
-                    if (!isEndingContact) {
-                        ((InteractiveTile) fixtureA.getUserData()).onPlayerEnter();
-                    } else {
-                        ((InteractiveTile) fixtureA.getUserData()).onPlayerLeave();
-                    }
-                }
-                break;
-            case BULLET_TAG | DEFAULT_TAG:
-            case BULLET_TAG | LOOT_TAG:
-                if(fixtureA.getFilterData().categoryBits == BULLET_TAG) {
-                    ((Bullet) fixtureA.getUserData()).destroy();
-                } else {
-                    ((Bullet) fixtureB.getUserData()).destroy();
-                }
-                break;
-            case ENEMY_TAG | LOOT_TAG:
-                if(fixtureA.getFilterData().categoryBits == ENEMY_TAG) {
-                    if (!isEndingContact) {
-                        ((InteractiveTile) fixtureB.getUserData()).onEnemyEnter((Enemy)fixtureA.getUserData());
-                    } else {
-                        ((InteractiveTile) fixtureB.getUserData()).onEnemyLeave((Enemy)fixtureA.getUserData());
-                    }
-                } else {
-                    if (!isEndingContact) {
-                        ((InteractiveTile) fixtureA.getUserData()).onEnemyEnter((Enemy)fixtureB.getUserData());
-                    } else {
-                        ((InteractiveTile) fixtureA.getUserData()).onEnemyLeave((Enemy)fixtureB.getUserData());
-                    }
-                }
-                break;
-            case ENEMY_TAG | BULLET_TAG:
-                if(fixtureA.getFilterData().categoryBits == ENEMY_TAG) {
-                    if (!((Enemy) fixtureA.getUserData()).isDead() && !((Bullet) fixtureB.getUserData()).isDestroyed()) {
-                        if (((Bullet) fixtureB.getUserData()).getWeapon().getLastSoldierToShoot() != fixtureA.getUserData()) {
-                            ((Enemy) fixtureA.getUserData()).getShot((Bullet)fixtureB.getUserData());
-                            ((Bullet) fixtureB.getUserData()).destroy();
-                            AudioManager.playHit();
-                        }
-                    }
-                } else if (!((Enemy) fixtureB.getUserData()).isDead() && !((Bullet) fixtureA.getUserData()).isDestroyed()) {
-                    if (((Bullet) fixtureA.getUserData()).getWeapon().getLastSoldierToShoot() != fixtureB.getUserData()) {
-                        ((Enemy) fixtureB.getUserData()).getShot((Bullet)fixtureA.getUserData());
-                        ((Bullet) fixtureA.getUserData()).destroy();
-                        AudioManager.playHit();
-                    }
-                }
-                break;
-            case PLAYER_TAG | BULLET_TAG:
-                if(fixtureA.getFilterData().categoryBits == PLAYER_TAG) {
-                    if (!match.getPlayer().isDead() && !((Bullet) fixtureB.getUserData()).isDestroyed()) {
-                        if (((Bullet) fixtureB.getUserData()).getWeapon().getLastSoldierToShoot() != match.getPlayer()) {
-                            match.getPlayer().getShot((Bullet)fixtureB.getUserData());
-                            ((Bullet) fixtureB.getUserData()).destroy();
-                            AudioManager.playHit();
-                        }
-                    }
-                } else if (!match.getPlayer().isDead() && !((Bullet) fixtureA.getUserData()).isDestroyed()) {
-                    if (((Bullet) fixtureA.getUserData()).getWeapon().getLastSoldierToShoot() != match.getPlayer()) {
-                        match.getPlayer().getShot((Bullet)fixtureA.getUserData());
-                        ((Bullet) fixtureA.getUserData()).destroy();
-                        AudioManager.playHit();
-                    }
-                }
-                break;
-            case ENEMY_TAG | PLAYER_TAG:
-                if(fixtureA.getFilterData().categoryBits == PLAYER_TAG) {
-                    if (!isEndingContact) {
-                        ((Enemy) fixtureB.getUserData()).onPlayerEnter();
-                    } else {
-                        ((Enemy) fixtureB.getUserData()).onPlayerLeave();
-                    }
-                } else {
-                    if (!isEndingContact) {
-                        ((Enemy) fixtureA.getUserData()).onPlayerEnter();
-                    } else {
-                        ((Enemy) fixtureA.getUserData()).onPlayerLeave();
-                    }
-                }
-                break;
-            case ENEMY_TAG:
-                if(fixtureA.getFilterData().categoryBits == ENEMY_TAG) {
-                    if (!isEndingContact) {
-                        ((Enemy) fixtureB.getUserData()).onEnemyEnter((Enemy)fixtureA.getUserData());
-                    } else {
-                        ((Enemy) fixtureB.getUserData()).onEnemyLeave((Enemy)fixtureA.getUserData());
-                    }
-                } else {
-                    if (!isEndingContact) {
-                        ((Enemy) fixtureA.getUserData()).onEnemyEnter((Enemy)fixtureB.getUserData());
-                    } else {
-                        ((Enemy) fixtureA.getUserData()).onEnemyLeave((Enemy)fixtureB.getUserData());
-                    }
-                }
-                break;
-        }
-    }
-
     @Override
     public void beginContact(Contact contact) {
-        sendContactMessage(contact, false);
+        handle(contact, true);
     }
 
     @Override
     public void endContact(Contact contact) {
-        sendContactMessage(contact, true);
+        handle(contact, false);
+    }
+
+    private void handle(Contact contact, boolean begins) {
+        Fixture a = contact.getFixtureA();
+        Fixture b = contact.getFixtureB();
+        short categoryA = a.getFilterData().categoryBits;
+        short categoryB = b.getFilterData().categoryBits;
+
+        if (categoryA == BULLET_TAG || categoryB == BULLET_TAG) {
+            if (begins) {
+                Fixture bullet = categoryA == BULLET_TAG ? a : b;
+                Fixture other = bullet == a ? b : a;
+                onBulletHit((Bullet) bullet.getUserData(), other);
+            }
+            return;
+        }
+        if (categoryA == PLAYER_TAG || categoryB == PLAYER_TAG) {
+            Fixture other = categoryA == PLAYER_TAG ? b : a;
+            onPlayerTouch(other, begins);
+            return;
+        }
+        if (categoryA == ENEMY_TAG && categoryB == ENEMY_TAG) {
+            if (begins) {
+                ((Enemy) a.getUserData()).onEnemyEnter((Enemy) b.getUserData());
+                ((Enemy) b.getUserData()).onEnemyEnter((Enemy) a.getUserData());
+            }
+            return;
+        }
+        if ((categoryA == ENEMY_TAG && categoryB == LOOT_TAG) || (categoryA == LOOT_TAG && categoryB == ENEMY_TAG)) {
+            Fixture enemy = categoryA == ENEMY_TAG ? a : b;
+            Fixture loot = enemy == a ? b : a;
+            if (begins) {
+                ((InteractiveTile) loot.getUserData()).onEnemyEnter((Enemy) enemy.getUserData());
+            }
+        }
+    }
+
+    private void onBulletHit(Bullet bullet, Fixture other) {
+        if (bullet.isSpent()) {
+            return;
+        }
+        short category = other.getFilterData().categoryBits;
+        if (category == PLAYER_TAG || category == ENEMY_TAG) {
+            Soldier target = category == PLAYER_TAG ? match.getPlayer() : (Soldier) other.getUserData();
+            if (target == bullet.getShooter() || target.isDead()) {
+                return;
+            }
+            bullet.spend();
+            target.takeDamage(bullet.getDamage(), bullet.getShooter());
+            AudioManager.playHit();
+        } else if (!other.isSensor()) {
+            bullet.spend();
+        }
+    }
+
+    private void onPlayerTouch(Fixture other, boolean begins) {
+        short category = other.getFilterData().categoryBits;
+        if (category == BUILDING_TAG || category == LOOT_TAG) {
+            InteractiveTile tile = (InteractiveTile) other.getUserData();
+            if (begins) {
+                tile.onPlayerEnter();
+            } else {
+                tile.onPlayerLeave();
+            }
+        } else if (category == ENEMY_TAG) {
+            Enemy enemy = (Enemy) other.getUserData();
+            if (begins) {
+                enemy.onPlayerEnter();
+            } else {
+                enemy.onPlayerLeave();
+            }
+        }
     }
 
     @Override
     public void preSolve(Contact contact, Manifold oldManifold) {
-
     }
 
     @Override
     public void postSolve(Contact contact, ContactImpulse impulse) {
-
     }
 }

@@ -1,627 +1,465 @@
 package com.joanathanps.battlearena.gui;
 
+import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
-import com.badlogic.gdx.graphics.g2d.Sprite;
+import com.badlogic.gdx.graphics.g2d.GlyphLayout;
+import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.Image;
-import com.badlogic.gdx.scenes.scene2d.ui.Label;
-import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.utils.ScissorStack;
-import com.badlogic.gdx.scenes.scene2d.utils.SpriteDrawable;
+import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.utils.Disposable;
-import com.badlogic.gdx.utils.Timer;
 import com.badlogic.gdx.utils.viewport.FitViewport;
-import com.badlogic.gdx.utils.viewport.Viewport;
-import com.joanathanps.battlearena.entities.Enemy;
+import com.joanathanps.battlearena.entities.Player;
+import com.joanathanps.battlearena.entities.Soldier;
 import com.joanathanps.battlearena.entities.objects.Empty;
+import com.joanathanps.battlearena.entities.objects.EntityObject;
 import com.joanathanps.battlearena.entities.objects.Inventory;
+import com.joanathanps.battlearena.entities.objects.weapons.Weapon;
 import com.joanathanps.battlearena.events.SafeZoneController;
-import com.joanathanps.battlearena.forge.WorldBuilder;
 import com.joanathanps.battlearena.graphics.FontGenerator;
 import com.joanathanps.battlearena.graphics.ResourceHandler;
 import com.joanathanps.battlearena.scenes.Match;
 
 import java.util.ArrayList;
 
-import static com.joanathanps.battlearena.scheme.PhysicsAdapter.pCenter;
+import static com.joanathanps.battlearena.scheme.PhysicsAdapter.formatSeconds;
 import static com.joanathanps.battlearena.scheme.PlayerSettings.GAME_HEIGHT;
 import static com.joanathanps.battlearena.scheme.PlayerSettings.GAME_WIDTH;
 
+/**
+ * Everything drawn over the match: zone banner, alive and kill counters, kill feed,
+ * minimap, health/armor/stamina bars, ammo, inventory slots and the nearby-loot panel.
+ * Laid out on a fixed 1280 x 720 canvas that scales with the window.
+ */
 public class HUD implements Disposable {
 
-    private Stage stage;
-    private Viewport viewport;
+    /** Minimap pixels per world unit, matching the minimap texture. */
+    private static final float MINIMAP_SCALE = 7.2f;
+    /** Ocean margin, in minimap pixels, around the island in the minimap texture. */
+    private static final float MINIMAP_MARGIN = 182f;
+    private static final float MINIMAP_X = 10f;
+    private static final float MINIMAP_Y = 10f;
+    private static final float MINIMAP_SIZE = 200f;
 
-    private Label event;
-    private Label timeToNextEvent;
+    private static final float SLOT_X = GAME_WIDTH - 370;
+    private static final float SLOT_STEP = 55.5f;
+    private static final float BAR_WIDTH = 400f;
 
-    private Texture minimap;
-    private Texture minimapFrame;
-    private Texture minimapPlayerMark;
-    private Rectangle minimapMask;
-    private int minimapOffset = 10;
+    private static final Color ZONE_RED = new Color(0.86f, 0.22f, 0.18f, 1f);
+    private static final Color MUTED = new Color(0.69f, 0.69f, 0.69f, 1f);
+    private static final Color STAMINA = new Color(1f, 0.84f, 0f, 1f);
 
-    // Safe zone and radar minimap elements
-    private Sprite minimapZoneDot;
-    private Sprite minimapZoneArrow;
-    private Texture minimapZoneCircleTex;
-    private Texture minimapArrowTex;
-    private Texture minimapGunshotTex;
-    private Sprite minimapGunshotDot;
+    private final Match match;
+    private final Stage stage;
+    private final ShapeRenderer shapes = new ShapeRenderer();
+    private final GlyphLayout layout = new GlyphLayout();
+    private final Rectangle minimapClip = new Rectangle(MINIMAP_X, MINIMAP_Y, MINIMAP_SIZE, MINIMAP_SIZE);
+    private final Rectangle scissor = new Rectangle();
+    private final Texture pixel;
 
-    public static class GunshotMarker {
-        public final Vector2 pos;
-        public float timeRemaining;
+    private final BitmapFont small = FontGenerator.generate(ResourceHandler.FontPath.BOMBARD, 12, true);
+    private final BitmapFont body = FontGenerator.generate(ResourceHandler.FontPath.BOMBARD, 14, true);
+    private final BitmapFont medium = FontGenerator.generate(ResourceHandler.FontPath.BOMBARD, 18, true);
+    private final BitmapFont large = FontGenerator.generate(ResourceHandler.FontPath.BOMBARD, 22, true);
+    private final BitmapFont counter = FontGenerator.generate(ResourceHandler.FontPath.BOMBARD, 26, false);
+    private final BitmapFont callout = FontGenerator.generate(ResourceHandler.FontPath.BOMBARD, 28, true);
 
-        public GunshotMarker(Vector2 pos) {
-            this.pos = new Vector2(pos);
-            this.timeRemaining = 1.8f;
-        }
-    }
-    private final ArrayList<GunshotMarker> gunshotMarkers = new ArrayList<>();
+    private final Texture minimap;
+    private final Texture minimapFrame;
+    private final Texture playerMark;
+    private final Texture emptyBar;
+    private final Texture healthBar;
+    private final Texture armorBar;
+    private final Texture healthIcon;
+    private final Texture armorIcon;
+    private final Texture vignette;
+    private final Texture eventBackground;
+    private final Texture counterBackground;
 
-    // PUBG-style Nearby Loot Widget
-    private NearbyLootWidget nearbyLootWidget;
-
-    private Image eventBackground;
-
-    private Texture emptyBar;
-    private Texture healthbar;
-    private Texture armorBar;
-    private Texture healthIcon;
-    private Texture armorIcon;
-    private BitmapFont barFont;
-    private Label healthPoints;
-    private Label armorPoints;
-    private Match match;
-
-    private Image inventoryBackground;
-    private Image selectionMarker;
-    private ArrayList<Image> items;
+    private final Image selectionMarker;
+    private final Image[] slotImages = new Image[Inventory.SLOTS];
+    private final EntityObject[] shownItems = new EntityObject[Inventory.SLOTS];
     private int selectedSlot;
 
-    private Texture vignette;
+    private final NearbyLootWidget nearbyLootWidget;
 
-    private Label ammoIndicator;
+    private final ArrayList<FeedEntry> feed = new ArrayList<>();
+    private final ArrayList<Gunshot> gunshots = new ArrayList<>();
+    private String calloutText = "";
+    private float calloutTime;
+    private float damageFlash;
 
-    private Label aliveIndicator;
-    private Label killsIndicator;
+    private static final class FeedEntry {
+        final String text;
+        final boolean involvesPlayer;
+        float time = 5f;
 
-    private Label killFeedback;
+        FeedEntry(String text, boolean involvesPlayer) {
+            this.text = text;
+            this.involvesPlayer = involvesPlayer;
+        }
+    }
 
-    private int kills;
+    private static final class Gunshot {
+        final Vector2 position;
+        float time = 1.8f;
+
+        Gunshot(Vector2 position) {
+            this.position = new Vector2(position);
+        }
+    }
 
     public HUD(Match match) {
         this.match = match;
-        init();
-        setupStage();
-        forgeEventDisplay();
-        forgeMinimap();
-        forgeHealthDisplay();
-        forgeInventory();
-        forgeAmmoIndicator();
-        forgeEnemyStatus();
-        forgeKillfeedback();
-    }
+        ResourceHandler resources = match.getResources();
+        stage = new Stage(new FitViewport(GAME_WIDTH, GAME_HEIGHT, new OrthographicCamera()), match.getBatch());
 
-    private void init() {
-        kills = 0;
-    }
+        Pixmap pixmap = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
+        pixmap.setColor(Color.WHITE);
+        pixmap.fill();
+        pixel = new Texture(pixmap);
+        pixmap.dispose();
 
-    private void setupStage() {
-        viewport = new FitViewport(GAME_WIDTH, GAME_HEIGHT, new OrthographicCamera());
-        stage = new Stage(viewport, match.getBatch());
-        vignette = match.getResources().getTexture(ResourceHandler.TexturePath.VIGNETTE);
-    }
+        minimap = resources.getTexture(ResourceHandler.TexturePath.MATCH_MINIMAP);
+        minimapFrame = resources.getTexture(ResourceHandler.TexturePath.MATCH_MINIMAP_FRAME);
+        playerMark = resources.getTexture(ResourceHandler.TexturePath.PLAYER_MARK);
+        emptyBar = resources.getTexture(ResourceHandler.TexturePath.EMPTY_BAR);
+        healthBar = resources.getTexture(ResourceHandler.TexturePath.HEALTH_BAR);
+        armorBar = resources.getTexture(ResourceHandler.TexturePath.ARMOR_BAR);
+        healthIcon = resources.getTexture(ResourceHandler.TexturePath.HEALTH_ICON);
+        armorIcon = resources.getTexture(ResourceHandler.TexturePath.ARMOR_ICON);
+        vignette = resources.getTexture(ResourceHandler.TexturePath.VIGNETTE);
+        eventBackground = resources.getTexture(ResourceHandler.TexturePath.EVENT_BACKGROUND);
+        counterBackground = resources.getTexture(ResourceHandler.TexturePath.ALIVE_INDICATOR_BG);
 
-    private void forgeEventDisplay() {
-        eventBackground = new Image(match.getResources().getTexture(ResourceHandler.TexturePath.EVENT_BACKGROUND));
-        float bgX = pCenter(GAME_WIDTH) - pCenter(eventBackground.getWidth());
-        float bgY = GAME_HEIGHT - eventBackground.getHeight();
-        eventBackground.setPosition(bgX, bgY);
-        stage.addActor(eventBackground);
-
-        Table table = new Table();
-        table.setSize(eventBackground.getWidth(), eventBackground.getHeight());
-        table.setPosition(bgX, bgY);
-        table.top();
-
-        event = new Label("",
-                new Label.LabelStyle(
-                        FontGenerator.generate(ResourceHandler.FontPath.BOMBARD, 12, false),
-                        Color.WHITE
-                )
-        );
-        event.setAlignment(Align.center);
-        table.add(event).center().padTop(4).row();
-
-        timeToNextEvent = new Label("",
-                new Label.LabelStyle(
-                        FontGenerator.generate(ResourceHandler.FontPath.BOMBARD, 18, false),
-                        Color.WHITE
-                )
-        );
-        timeToNextEvent.setAlignment(Align.center);
-        table.add(timeToNextEvent).center().padTop(1).row();
-
-        stage.addActor(table);
-    }
-
-    private void forgeMinimap() {
-        minimap = match.getResources().getTexture(ResourceHandler.TexturePath.MATCH_MINIMAP);
-        minimapFrame = match.getResources().getTexture(ResourceHandler.TexturePath.MATCH_MINIMAP_FRAME);
-        minimapPlayerMark = match.getResources().getTexture(ResourceHandler.TexturePath.PLAYER_MARK);
-        minimapMask = new Rectangle();
-        Rectangle clipBounds = new Rectangle(minimapOffset, minimapOffset, 200, 200);
-        ScissorStack.calculateScissors(stage.getCamera(), stage.getBatch().getTransformMatrix(), clipBounds, minimapMask);
-
-        // 1. Safe zone center dot
-        Pixmap dotPixmap = new Pixmap(12, 12, Pixmap.Format.RGBA8888);
-        dotPixmap.setColor(0, 0, 0, 0);
-        dotPixmap.fill();
-        dotPixmap.setColor(0.35f, 0.92f, 1f, 1f);
-        dotPixmap.fillCircle(6, 6, 5);
-        Texture dotTex = new Texture(dotPixmap);
-        dotPixmap.dispose();
-        minimapZoneDot = new Sprite(dotTex);
-        minimapZoneDot.setSize(8, 8);
-
-        // 2. High-resolution smooth anti-aliased safe zone circle boundary ring
-        Pixmap circlePixmap = new Pixmap(512, 512, Pixmap.Format.RGBA8888);
-        circlePixmap.setColor(0, 0, 0, 0);
-        circlePixmap.fill();
-
-        float center = 256f;
-        float ringRadius = 248f;
-        float ringThickness = 4.5f;
-
-        for (int y = 0; y < 512; y++) {
-            for (int x = 0; x < 512; x++) {
-                float dx = x - center;
-                float dy = y - center;
-                float dist = (float) Math.sqrt(dx * dx + dy * dy);
-                float diff = Math.abs(dist - ringRadius);
-                if (diff <= ringThickness + 2.5f) {
-                    float alpha = Math.max(0f, Math.min(1f, 1f - (diff - (ringThickness - 1f)) / 3.5f));
-                    circlePixmap.setColor(0.35f, 0.92f, 1f, alpha * 0.92f);
-                    circlePixmap.drawPixel(x, y);
-                }
-            }
-        }
-        minimapZoneCircleTex = new Texture(circlePixmap);
-        minimapZoneCircleTex.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
-        circlePixmap.dispose();
-
-        // 3. Directional arrow nudge on minimap edge
-        Pixmap arrowPixmap = new Pixmap(20, 20, Pixmap.Format.RGBA8888);
-        arrowPixmap.setColor(0, 0, 0, 0);
-        arrowPixmap.fill();
-        arrowPixmap.setColor(0.25f, 0.95f, 1f, 1f);
-        arrowPixmap.fillTriangle(10, 0, 2, 18, 18, 18);
-        minimapArrowTex = new Texture(arrowPixmap);
-        minimapArrowTex.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
-        arrowPixmap.dispose();
-        minimapZoneArrow = new Sprite(minimapArrowTex);
-        minimapZoneArrow.setSize(12, 12);
-
-        // 4. Solid clean red gunshot marker (only for active shooting)
-        Pixmap gunshotPixmap = new Pixmap(16, 16, Pixmap.Format.RGBA8888);
-        gunshotPixmap.setColor(0, 0, 0, 0);
-        gunshotPixmap.fill();
-        gunshotPixmap.setColor(0.95f, 0.15f, 0.15f, 1f);
-        gunshotPixmap.fillCircle(8, 8, 6);
-        gunshotPixmap.setColor(1f, 0.8f, 0.8f, 0.9f);
-        gunshotPixmap.fillCircle(8, 8, 2);
-        minimapGunshotTex = new Texture(gunshotPixmap);
-        minimapGunshotTex.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
-        gunshotPixmap.dispose();
-        minimapGunshotDot = new Sprite(minimapGunshotTex);
-        minimapGunshotDot.setSize(8, 8);
-
-        // 5. Nearby loot widget
-        nearbyLootWidget = new NearbyLootWidget(match);
-    }
-
-    private void forgeHealthDisplay() {
-        emptyBar = match.getResources().getTexture(ResourceHandler.TexturePath.EMPTY_BAR);
-        healthbar = match.getResources().getTexture(ResourceHandler.TexturePath.HEALTH_BAR);
-        armorBar = match.getResources().getTexture(ResourceHandler.TexturePath.ARMOR_BAR);
-        healthIcon = match.getResources().getTexture(ResourceHandler.TexturePath.HEALTH_ICON);
-        armorIcon = match.getResources().getTexture(ResourceHandler.TexturePath.ARMOR_ICON);
-        barFont = FontGenerator.generate(ResourceHandler.FontPath.BOMBARD, 14, false);
-    }
-
-    private void forgeInventory() {
-        items = new ArrayList<>();
-        inventoryBackground = new Image(match.getResources().getTexture(ResourceHandler.TexturePath.INVENTORY));
+        Image inventoryBackground = new Image(resources.getTexture(ResourceHandler.TexturePath.INVENTORY));
         inventoryBackground.setPosition(GAME_WIDTH - 366, 10);
         stage.addActor(inventoryBackground);
 
-        selectedSlot = 0;
-
-        selectionMarker = new Image(match.getResources().getTexture(ResourceHandler.TexturePath.SELECTED_SLOT));
-        Vector2 markerPos = getSelectionMarkerPosition(selectedSlot);
-        selectionMarker.setPosition(markerPos.x, markerPos.y);
+        selectionMarker = new Image(resources.getTexture(ResourceHandler.TexturePath.SELECTED_SLOT));
         stage.addActor(selectionMarker);
-
-        float itemPos = GAME_WIDTH - 370;
-        for (int i = 0; i < 6; i++) {
-            items.add(new Image(match.getResources().getTexture(ResourceHandler.TexturePath.INVISIBLE_SLOT)));
-            items.get(i).setPosition(itemPos, 15);
-            itemPos += 55.5f;
-            stage.addActor(items.get(i));
+        for (int i = 0; i < Inventory.SLOTS; i++) {
+            slotImages[i] = new Image(resources.getTexture(ResourceHandler.TexturePath.INVISIBLE_SLOT));
+            slotImages[i].setPosition(SLOT_X + i * SLOT_STEP, 15);
+            stage.addActor(slotImages[i]);
         }
+        switchSelectedSlot(0);
+
+        nearbyLootWidget = new NearbyLootWidget(match);
     }
 
-    private void forgeAmmoIndicator() {
-        Table table = new Table();
-        table.bottom();
-        table.setFillParent(true);
+    // ---- per-frame entry points, called by Match ----
 
-        ammoIndicator = new Label("",
-                new Label.LabelStyle(
-                        FontGenerator.generate(ResourceHandler.FontPath.BOMBARD, 22, false), Color.WHITE
-                )
-        );
-        table.add(ammoIndicator).padBottom(60).row();
-
-        stage.addActor(table);
-    }
-
-    private void forgeEnemyStatus() {
-        Image aliveIndicatorBackground = new Image(match.getResources().getTexture(ResourceHandler.TexturePath.ALIVE_INDICATOR_BG));
-        aliveIndicatorBackground.setPosition(0, GAME_HEIGHT - aliveIndicatorBackground.getHeight());
-        stage.addActor(aliveIndicatorBackground);
-
-        Table table = new Table();
-        table.top().left();
-        table.setFillParent(true);
-        aliveIndicator = new Label("",
-                new Label.LabelStyle(
-                        FontGenerator.generate(ResourceHandler.FontPath.BOMBARD, 26, false), Color.valueOf("afafaf")
-                )
-        );
-        table.add(aliveIndicator).padTop(6).padLeft(6).row();
-        stage.addActor(table);
-
-        Image aliveArrow = new Image(match.getResources().getTexture(ResourceHandler.TexturePath.THIN_ARROW));
-        aliveArrow.setPosition(30, GAME_HEIGHT - aliveArrow.getHeight() - 10);
-        stage.addActor(aliveArrow);
-
-        Image killsIndicatorBackground = new Image(match.getResources().getTexture(ResourceHandler.TexturePath.ALIVE_INDICATOR_BG));
-        killsIndicatorBackground.setPosition(GAME_WIDTH, GAME_HEIGHT - killsIndicatorBackground.getHeight());
-        killsIndicatorBackground.setSize(-killsIndicatorBackground.getWidth(), killsIndicatorBackground.getHeight());
-        stage.addActor(killsIndicatorBackground);
-
-        table = new Table();
-        table.top().right();
-        table.setFillParent(true);
-
-        killsIndicator = new Label("",
-                new Label.LabelStyle(
-                        FontGenerator.generate(ResourceHandler.FontPath.BOMBARD, 26, false), Color.valueOf("afafaf")
-                )
-        );
-        table.add(killsIndicator).padTop(6).padRight(6).row();
-        stage.addActor(table);
-
-        Image killsArrow = new Image(match.getResources().getTexture(ResourceHandler.TexturePath.THIN_ARROW));
-        killsArrow.setPosition(GAME_WIDTH - 65, GAME_HEIGHT - killsArrow.getHeight() + 8);
-        killsArrow.setSize(killsArrow.getWidth(), -killsArrow.getHeight());
-        stage.addActor(killsArrow);
-    }
-
-    private void forgeKillfeedback() {
-        Table table = new Table();
-        table.center();
-        table.setFillParent(true);
-        killFeedback = new Label( "",
-                new Label.LabelStyle(
-                        FontGenerator.generate(ResourceHandler.FontPath.BOMBARD, 26, false), Color.valueOf("ce3535")
-                )
-        );
-        table.add(killFeedback).padTop(250);
-        stage.addActor(table);
-        killFeedback.setVisible(false);
-    }
-
-    private Vector2 getSelectionMarkerPosition(int index) {
-        switch (index) {
-            case 0: return new Vector2(GAME_WIDTH - 370, 6);
-            case 1: return new Vector2(GAME_WIDTH - 314.5f, 6);
-            case 2: return new Vector2(GAME_WIDTH - 259, 6);
-            case 3: return new Vector2(GAME_WIDTH - 203.5f, 6);
-            case 4: return new Vector2(GAME_WIDTH - 148, 6);
-            case 5: return new Vector2(GAME_WIDTH - 92.5f, 6);
-            default: return new Vector2(GAME_WIDTH - 37, 6);
-        }
-    }
-
-    public void drawVignette(float delta) {
-        match.getBatch().begin();
-        match.getBatch().draw(vignette, 0, 0, GAME_WIDTH, GAME_HEIGHT);
-        match.getBatch().end();
-    }
-
-    public void drawMinimap(float delta, Vector2 playerPosition) {
-        match.getBatch().begin();
-        match.getBatch().flush();
-        ScissorStack.pushScissors(minimapMask);
-        match.getBatch().draw(minimap, - playerPosition.x * 7.2f - 82 + minimapOffset,
-                - playerPosition.y * 7.2f - 82 + minimapOffset);
-        match.getBatch().draw(minimapFrame, minimapOffset, minimapOffset);
-        match.getBatch().draw(minimapPlayerMark,
-                pCenter(minimapFrame.getWidth()) - pCenter(minimapPlayerMark.getWidth()) + minimapOffset,
-                pCenter(minimapFrame.getHeight()) - pCenter(minimapPlayerMark.getHeight()) + minimapOffset);
-
-        // Minimap center in screen coords (player is always here)
-        float mapCenterX = pCenter(minimapFrame.getWidth()) + minimapOffset; // 110
-        float mapCenterY = pCenter(minimapFrame.getHeight()) + minimapOffset; // 110
-
-        // Minimap frame bounds (screen coords)
-        float frameLeft   = minimapOffset + 4;
-        float frameRight  = minimapOffset + minimapFrame.getWidth() - 4;
-        float frameBottom = minimapOffset + 4;
-        float frameTop    = minimapOffset + minimapFrame.getHeight() - 4;
-
-        // --- 1. Draw Safe Zone Boundary Circle & Directional Arrow on Minimap ---
-        SafeZoneController szc = match.getSafeZoneController();
-        if (szc != null) {
-            Vector2[] offsets = szc.getSafezoneOffsets();
-            int offsetIndex = szc.getCurrentOffset();
-            Vector2 offset = offsets[offsetIndex];
-
-            // Safe zone world-center
-            float szWorldX = offset.x + 41f;
-            float szWorldY = offset.y + 41f;
-
-            // Relative offset from player to safe zone, scaled to minimap pixels
-            float relX = (szWorldX - playerPosition.x) * 7.2f;
-            float relY = (szWorldY - playerPosition.y) * 7.2f;
-
-            float dotScreenX = mapCenterX + relX;
-            float dotScreenY = mapCenterY + relY;
-
-            // Radius in world units -> minimap pixels
-            float szWorldRadius = 30.5f;
-            int event = szc.getCurrentEvent();
-            if (event >= 3 && event <= 4) szWorldRadius = 21f;
-            else if (event >= 5 && event <= 6) szWorldRadius = 13f;
-            else if (event >= 7 && event <= 8) szWorldRadius = 6.5f;
-            float szPixelRadius = szWorldRadius * 7.2f;
-
-            // Draw circular safe zone boundary ring on minimap
-            match.getBatch().setColor(0.3f, 0.9f, 1f, 0.75f);
-            match.getBatch().draw(minimapZoneCircleTex,
-                    dotScreenX - szPixelRadius, dotScreenY - szPixelRadius,
-                    szPixelRadius * 2f, szPixelRadius * 2f);
-            match.getBatch().setColor(Color.WHITE);
-
-            // Draw center dot
-            minimapZoneDot.setCenter(dotScreenX, dotScreenY);
-            minimapZoneDot.draw(match.getBatch());
-
-            // Directional arrow nudge on minimap edge pointing to safe zone
-            float dx = relX;
-            float dy = relY;
-            float len = (float) Math.sqrt(dx * dx + dy * dy);
-            if (len > 0) {
-                dx /= len;
-                dy /= len;
-            }
-            float edgeMargin = 8f;
-            float arrowX = MathUtils.clamp(mapCenterX + dx * 86f, frameLeft + edgeMargin, frameRight - edgeMargin);
-            float arrowY = MathUtils.clamp(mapCenterY + dy * 86f, frameBottom + edgeMargin, frameTop - edgeMargin);
-            float angleDeg = MathUtils.radiansToDegrees * MathUtils.atan2(dy, dx) - 90f;
-            minimapZoneArrow.setCenter(arrowX, arrowY);
-            minimapZoneArrow.setOrigin(minimapZoneArrow.getWidth() / 2f, minimapZoneArrow.getHeight() / 2f);
-            minimapZoneArrow.setRotation(angleDeg);
-            minimapZoneArrow.draw(match.getBatch());
-        }
-
-        // --- 2. Draw Solid Red Gunshot Indicators on Minimap (ONLY when gunshots occur) ---
-        for (int i = gunshotMarkers.size() - 1; i >= 0; i--) {
-            GunshotMarker gm = gunshotMarkers.get(i);
-            gm.timeRemaining -= delta;
-            if (gm.timeRemaining <= 0) {
-                gunshotMarkers.remove(i);
-                continue;
-            }
-
-            float relEx = (gm.pos.x - playerPosition.x) * 7.2f;
-            float relEy = (gm.pos.y - playerPosition.y) * 7.2f;
-            float eScreenX = mapCenterX + relEx;
-            float eScreenY = mapCenterY + relEy;
-
-            boolean inBounds = eScreenX >= frameLeft && eScreenX <= frameRight
-                    && eScreenY >= frameBottom && eScreenY <= frameTop;
-
-            if (inBounds) {
-                // Solid clean red (no blinking)
-                float alpha = MathUtils.clamp(gm.timeRemaining / 1.8f, 0.2f, 1f);
-                minimapGunshotDot.setColor(1f, 0.15f, 0.15f, alpha);
-                minimapGunshotDot.setCenter(eScreenX, eScreenY);
-                minimapGunshotDot.draw(match.getBatch());
+    public void update(float delta) {
+        refreshSlots();
+        for (int i = feed.size() - 1; i >= 0; i--) {
+            feed.get(i).time -= delta;
+            if (feed.get(i).time <= 0) {
+                feed.remove(i);
             }
         }
-
-        match.getBatch().flush();
-        ScissorStack.popScissors();
-        match.getBatch().end();
-    }
-
-    public void drawNearbyLoot(float delta) {
-        if (nearbyLootWidget != null) {
+        for (int i = gunshots.size() - 1; i >= 0; i--) {
+            gunshots.get(i).time -= delta;
+            if (gunshots.get(i).time <= 0) {
+                gunshots.remove(i);
+            }
+        }
+        if (calloutTime > 0) {
+            calloutTime -= delta;
+        }
+        if (damageFlash > 0) {
+            damageFlash = Math.max(0, damageFlash - delta * 1.8f);
+        }
+        if (match.getState() == Match.GameState.RUNNING) {
             nearbyLootWidget.update(delta);
-            nearbyLootWidget.draw(match.getBatch());
         }
     }
 
-    public void drawHealthBars(float delta, int health, int armor) {
-        float barX = pCenter(GAME_WIDTH) - pCenter(emptyBar.getWidth());
-        match.getBatch().begin();
-        // Background bars
-        match.getBatch().draw(emptyBar, barX, 33);
-        match.getBatch().draw(emptyBar, barX, 15);
+    public void draw(boolean showMinimap, boolean showLoot) {
+        Batch batch = match.getBatch();
+        stage.getViewport().apply();
+        batch.setProjectionMatrix(stage.getCamera().combined);
 
-        // Filled bars
-        if (armor > 0) {
-            match.getBatch().draw(armorBar, barX, 33, Math.min(armor * 4, 400), 15);
+        batch.begin();
+        batch.setColor(Color.WHITE);
+        batch.draw(vignette, 0, 0, GAME_WIDTH, GAME_HEIGHT);
+        if (damageFlash > 0) {
+            batch.setColor(0.85f, 0.05f, 0.05f, Math.min(0.55f, damageFlash));
+            batch.draw(vignette, 0, 0, GAME_WIDTH, GAME_HEIGHT);
+            batch.setColor(Color.WHITE);
         }
-        if (health > 0) {
-            match.getBatch().draw(healthbar, barX, 15, Math.min(health * 4, 400), 15);
+        drawZoneBanner(batch);
+        drawCounters(batch);
+        drawFeed(batch);
+        drawBars(batch);
+        drawAmmo(batch);
+        drawCallout(batch);
+        batch.end();
+
+        stage.draw();
+
+        if (showMinimap) {
+            drawMinimap(batch);
         }
-
-        // Icons (centered vertically inside 15px high bars: 33+1.5=34.5->35, 15+1.5=16.5->17)
-        match.getBatch().draw(armorIcon, barX + 3, 35);
-        match.getBatch().draw(healthIcon, barX + 3, 17);
-
-        // Values drawn side-by-side with icons: X = barX + 18, Y baseline = 45 and 27
-        if (barFont != null) {
-            barFont.setColor(Color.WHITE);
-            barFont.draw(match.getBatch(), String.valueOf(armor), barX + 18, 45);
-            barFont.draw(match.getBatch(), String.valueOf(health), barX + 18, 27);
-        }
-
-        match.getBatch().end();
-    }
-
-    public void updateHealthBars(float delta, int health, int armor) {
-    }
-
-    public void drawStaminaBar(float delta, float stamina, float maxStamina) {
-        float ratio = MathUtils.clamp(stamina / maxStamina, 0f, 1f);
-        match.getBatch().begin();
-        match.getBatch().draw(emptyBar, pCenter(GAME_WIDTH) - pCenter(emptyBar.getWidth()), 51);
-        Color previousColor = match.getBatch().getColor();
-        match.getBatch().setColor(Color.valueOf("ffd700"));
-        match.getBatch().draw(armorBar,
-                pCenter(GAME_WIDTH) - pCenter(emptyBar.getWidth()),
-                51,
-                ratio * 400,
-                15);
-        match.getBatch().setColor(previousColor);
-        match.getBatch().end();
-    }
-
-    public void updateAmmoIndicator(float delta, Inventory inventory) {
-        int bulletsInMagazine = inventory.getBulletsInMagazine();
-        if (bulletsInMagazine != -1) {
-            ammoIndicator.setText(bulletsInMagazine + " | INF");
-        } else {
-            ammoIndicator.setText("");
+        if (showLoot) {
+            nearbyLootWidget.draw(batch);
         }
     }
 
-    public void updateEnemyStatus(float delta, WorldBuilder worldBuilder) {
-        int alive = worldBuilder.getEnemies().size() + 1;
-        for (Enemy enemy : worldBuilder.getEnemies()) {
-            if (enemy.isDead()) {
-                alive--;
+    // ---- top: zone banner, counters, kill feed ----
+
+    private void drawZoneBanner(Batch batch) {
+        SafeZoneController zone = match.getSafeZoneController();
+        float x = (GAME_WIDTH - eventBackground.getWidth()) / 2f;
+        float y = GAME_HEIGHT - eventBackground.getHeight();
+        batch.draw(eventBackground, x, y);
+
+        String title;
+        String time = formatSeconds(zone.getSecondsLeft(), false);
+        switch (zone.getStage()) {
+            case WAITING:
+                title = text("zoneShrinksIn");
+                break;
+            case SHRINKING:
+                title = text("zoneShrinking");
+                break;
+            default:
+                title = text("zoneClosed");
+                time = "";
+                break;
+        }
+        small.setColor(Color.WHITE);
+        drawCentered(batch, small, title + "  " + zone.getPhaseNumber() + "/" + SafeZoneController.PHASES,
+                GAME_WIDTH / 2f, GAME_HEIGHT - 6);
+        medium.setColor(Color.WHITE);
+        drawCentered(batch, medium, time, GAME_WIDTH / 2f, GAME_HEIGHT - 20);
+
+        Player player = match.getPlayer();
+        if (!player.isDead() && zone.isOutside(player.getBody().getPosition())) {
+            body.setColor(ZONE_RED);
+            drawCentered(batch, body, text("outsideZone") + "  -" + zone.getDamagePerSecond() + " HP/s",
+                    GAME_WIDTH / 2f, GAME_HEIGHT - eventBackground.getHeight() - 8);
+        }
+    }
+
+    private void drawCounters(Batch batch) {
+        float top = GAME_HEIGHT - counterBackground.getHeight();
+        batch.draw(counterBackground, 0, top);
+        batch.draw(counterBackground, GAME_WIDTH, top, -counterBackground.getWidth(), counterBackground.getHeight());
+
+        counter.setColor(MUTED);
+        counter.draw(batch, String.valueOf(match.getAliveCount()), 8, GAME_HEIGHT - 8);
+        layout.setText(counter, String.valueOf(match.getPlayer().getKills()));
+        counter.draw(batch, layout, GAME_WIDTH - 8 - layout.width, GAME_HEIGHT - 8);
+
+        small.setColor(MUTED);
+        small.draw(batch, text("alive"), 50, GAME_HEIGHT - 16);
+        layout.setText(small, text("kills"));
+        small.draw(batch, layout, GAME_WIDTH - 50 - layout.width, GAME_HEIGHT - 16);
+    }
+
+    private void drawFeed(Batch batch) {
+        float y = GAME_HEIGHT - 56;
+        for (int i = feed.size() - 1; i >= 0; i--) {
+            FeedEntry entry = feed.get(i);
+            float alpha = Math.min(1f, entry.time);
+            layout.setText(body, entry.text);
+            float x = GAME_WIDTH - 12 - layout.width;
+            batch.setColor(0f, 0f, 0f, 0.45f * alpha);
+            batch.draw(pixel, x - 6, y - layout.height - 5, layout.width + 12, layout.height + 10);
+            batch.setColor(Color.WHITE);
+            body.setColor(entry.involvesPlayer ? STAMINA.r : 1f, entry.involvesPlayer ? STAMINA.g : 1f,
+                    entry.involvesPlayer ? STAMINA.b : 1f, alpha);
+            body.draw(batch, entry.text, x, y);
+            y -= layout.height + 12;
+        }
+    }
+
+    // ---- bottom: bars, ammo, callout ----
+
+    private void drawBars(Batch batch) {
+        Player player = match.getPlayer();
+        float x = (GAME_WIDTH - BAR_WIDTH) / 2f;
+        float stamina = MathUtils.clamp(player.getStamina() / player.getMaxStamina(), 0f, 1f);
+
+        batch.draw(emptyBar, x, 51);
+        batch.setColor(STAMINA);
+        batch.draw(armorBar, x, 51, stamina * BAR_WIDTH, 15);
+        batch.setColor(Color.WHITE);
+
+        batch.draw(emptyBar, x, 33);
+        batch.draw(emptyBar, x, 15);
+        if (player.getArmor() > 0) {
+            batch.draw(armorBar, x, 33, Math.min(player.getArmor() * 4, BAR_WIDTH), 15);
+        }
+        if (player.getHealth() > 0) {
+            batch.draw(healthBar, x, 15, Math.min(player.getHealth() * 4, BAR_WIDTH), 15);
+        }
+        batch.draw(armorIcon, x + 3, 35);
+        batch.draw(healthIcon, x + 3, 17);
+        body.setColor(Color.WHITE);
+        body.draw(batch, String.valueOf(player.getArmor()), x + 18, 45);
+        body.draw(batch, String.valueOf(player.getHealth()), x + 18, 27);
+    }
+
+    private void drawAmmo(Batch batch) {
+        EntityObject held = match.getPlayer().getInventory().getSelectedItem();
+        if (!(held instanceof Weapon)) {
+            return;
+        }
+        Weapon weapon = (Weapon) held;
+        String ammo = weapon.getBullets() + " / " + weapon.getMagCapacity();
+        large.setColor(weapon.getBullets() == 0 ? ZONE_RED : Color.WHITE);
+        drawCentered(batch, large, ammo, GAME_WIDTH / 2f, 96);
+        if (weapon.getBullets() == 0 && !match.getPlayer().getInventory().isSelectedBeingUsed()) {
+            small.setColor(Color.WHITE);
+            drawCentered(batch, small, text("reloadHint"), GAME_WIDTH / 2f, 112);
+        }
+    }
+
+    private void drawCallout(Batch batch) {
+        if (calloutTime <= 0) {
+            return;
+        }
+        callout.setColor(ZONE_RED.r, ZONE_RED.g, ZONE_RED.b, Math.min(1f, calloutTime));
+        drawCentered(batch, callout, calloutText, GAME_WIDTH / 2f, GAME_HEIGHT / 2f - 110);
+    }
+
+    // ---- minimap ----
+
+    private void drawMinimap(Batch batch) {
+        Vector2 player = match.getPlayer().getBody().getPosition();
+        float centerX = MINIMAP_X + MINIMAP_SIZE / 2f;
+        float centerY = MINIMAP_Y + MINIMAP_SIZE / 2f;
+
+        ScissorStack.calculateScissors(stage.getCamera(), batch.getTransformMatrix(), minimapClip, scissor);
+        batch.begin();
+        batch.flush();
+        if (ScissorStack.pushScissors(scissor)) {
+            batch.draw(minimap, centerX - MINIMAP_MARGIN - player.x * MINIMAP_SCALE,
+                    centerY - MINIMAP_MARGIN - player.y * MINIMAP_SCALE);
+            batch.end();
+
+            SafeZoneController zone = match.getSafeZoneController();
+            shapes.setProjectionMatrix(stage.getCamera().combined);
+            Gdx.gl.glEnable(com.badlogic.gdx.graphics.GL20.GL_BLEND);
+            shapes.begin(ShapeRenderer.ShapeType.Filled);
+            float zx = centerX + (zone.getCenter().x - player.x) * MINIMAP_SCALE;
+            float zy = centerY + (zone.getCenter().y - player.y) * MINIMAP_SCALE;
+            float zr = zone.getRadius() * MINIMAP_SCALE;
+            SafeZoneController.drawRing(shapes, zx, zy, zr, zr + 400, 0.78f, 0.17f, 0.13f, 0.35f);
+            SafeZoneController.drawRing(shapes, zx, zy, zr - 1f, zr + 1f, 0.86f, 0.22f, 0.18f, 1f);
+            if (zone.hasNextCircle()) {
+                float nx = centerX + (zone.getNextCenter().x - player.x) * MINIMAP_SCALE;
+                float ny = centerY + (zone.getNextCenter().y - player.y) * MINIMAP_SCALE;
+                float nr = zone.getNextRadius() * MINIMAP_SCALE;
+                SafeZoneController.drawRing(shapes, nx, ny, nr - 0.8f, nr + 0.8f, 1f, 1f, 1f, 0.9f);
             }
+            for (Gunshot shot : gunshots) {
+                shapes.setColor(1f, 0.15f, 0.15f, MathUtils.clamp(shot.time / 1.8f, 0.2f, 1f));
+                shapes.circle(centerX + (shot.position.x - player.x) * MINIMAP_SCALE,
+                        centerY + (shot.position.y - player.y) * MINIMAP_SCALE, 3.5f, 10);
+            }
+            shapes.end();
+
+            batch.begin();
+            batch.draw(minimapFrame, MINIMAP_X, MINIMAP_Y);
+            batch.draw(playerMark, centerX - playerMark.getWidth() / 2f, centerY - playerMark.getHeight() / 2f);
+            batch.flush();
+            ScissorStack.popScissors();
         }
-        aliveIndicator.setText(String.valueOf(alive));
-        killsIndicator.setText(String.valueOf(match.getPlayer().getKills()));
+        batch.end();
     }
 
-    public void updateInventory(float delta) {
-        if (match.getPlayer() != null) {
-            for (int i = 0; i < 6; i++) {
-                items.get(i).setDrawable(
-                        new SpriteDrawable(new Sprite(
-                                match.getPlayer().getInventory().getItems().get(i).getClass() == Empty.class ?
-                                        match.getResources().getTexture(ResourceHandler.TexturePath.INVISIBLE_SLOT) :
-                                        match.getPlayer().getInventory().getItems().get(i).getIcon()
-                        ))
-                );
+    // ---- events from the match ----
+
+    public void onElimination(Soldier victim, Soldier killer) {
+        Player player = match.getPlayer();
+        String killerName = killer == null ? text("zone") : killer.getName();
+        feed.add(new FeedEntry(killerName + "  >  " + victim.getName(), victim == player || killer == player));
+        if (feed.size() > 5) {
+            feed.remove(0);
+        }
+        if (killer == player && victim != player) {
+            calloutText = text("eliminated") + "  " + victim.getName();
+            calloutTime = 2.2f;
+        }
+    }
+
+    public void flashDamage(int amount) {
+        damageFlash = Math.min(0.9f, damageFlash + 0.25f + amount / 100f);
+    }
+
+    public void recordGunshot(Vector2 position) {
+        if (position != null && match.getPlayer() != null
+                && position.dst2(match.getPlayer().getBody().getPosition()) > 0.01f) {
+            gunshots.add(new Gunshot(position));
+        }
+    }
+
+    // ---- inventory slots ----
+
+    private void refreshSlots() {
+        ArrayList<EntityObject> items = match.getPlayer().getInventory().getItems();
+        for (int i = 0; i < Inventory.SLOTS; i++) {
+            EntityObject item = items.get(i);
+            if (item != shownItems[i]) {
+                shownItems[i] = item;
+                Texture icon = item instanceof Empty
+                        ? match.getResources().getTexture(ResourceHandler.TexturePath.INVISIBLE_SLOT)
+                        : item.getIcon();
+                slotImages[i].setDrawable(new TextureRegionDrawable(new com.badlogic.gdx.graphics.g2d.TextureRegion(icon)));
             }
         }
     }
 
     public void switchSelectedSlot(int slotIndex) {
-        Vector2 newPos = getSelectionMarkerPosition(slotIndex);
-        selectedSlot = slotIndex;
-        selectionMarker.setPosition(newPos.x, newPos.y);
+        selectedSlot = (slotIndex % Inventory.SLOTS + Inventory.SLOTS) % Inventory.SLOTS;
+        selectionMarker.setPosition(SLOT_X + selectedSlot * SLOT_STEP, 6);
     }
 
-    public void switchSelectedSlot(boolean isGoingForward) {
-        if (!isGoingForward) {
-            Vector2 newPos = getSelectionMarkerPosition(selectedSlot - 1 < 0 ? 5 : selectedSlot - 1);
-            selectedSlot = selectedSlot - 1 < 0 ? 5 : selectedSlot - 1;
-            selectionMarker.setPosition(newPos.x, newPos.y);
-        } else {
-            Vector2 newPos = getSelectionMarkerPosition(selectedSlot + 1 > 5 ? 0 : selectedSlot + 1);
-            selectedSlot = selectedSlot + 1 > 5 ? 0 : selectedSlot + 1;
-            selectionMarker.setPosition(newPos.x, newPos.y);
-        }
-    }
-
-    public void updateTimeLabel(String time) {
-        timeToNextEvent.setText(time);
-    }
-
-    public void updateEventLabel(String eventLabel, boolean isInZoneEvent) {
-        event.setText(eventLabel);
-        if (isInZoneEvent) {
-            timeToNextEvent.setVisible(false);
-            event.setStyle(new Label.LabelStyle(
-                    FontGenerator.generate(ResourceHandler.FontPath.BOMBARD, 18, false), Color.WHITE
-            ));
-        } else {
-            timeToNextEvent.setVisible(true);
-            event.setStyle(new Label.LabelStyle(
-                    FontGenerator.generate(ResourceHandler.FontPath.BOMBARD, 12, false), Color.WHITE
-            ));
-        }
-        event.setAlignment(Align.center);
-    }
-
-    public void notifyKill(int kills) {
-        killFeedback.setVisible(true);
-        killFeedback.setText(kills + " " + match.getI18n().getBundle().get(kills > 1 ? "kills" : "kill"));
-        this.kills = kills;
-        Timer.schedule(new Timer.Task(){
-            @Override
-            public void run() {
-                killFeedback.setText("");
-                killFeedback.setVisible(false);
-            }
-        }, 2);
-    }
-
-    public void recordGunshot(Vector2 position) {
-        if (position != null) {
-            gunshotMarkers.add(new GunshotMarker(position));
-        }
-    }
-
-    @Override
-    public void dispose() {
-        stage.dispose();
-        if (barFont != null) barFont.dispose();
-        if (nearbyLootWidget != null) nearbyLootWidget.dispose();
-        if (minimapZoneCircleTex != null) minimapZoneCircleTex.dispose();
-        if (minimapArrowTex != null) minimapArrowTex.dispose();
-        if (minimapGunshotTex != null) minimapGunshotTex.dispose();
-    }
-
-    public Stage getStage() {
-        return stage;
+    public void switchSelectedSlot(boolean forward) {
+        switchSelectedSlot(selectedSlot + (forward ? 1 : -1));
     }
 
     public int getSelectedSlot() {
         return selectedSlot;
     }
 
-    public int getKills() {
-        return kills;
+    public boolean isPointerOverLootPanel() {
+        return nearbyLootWidget.isPointerOver();
+    }
+
+    // ---- helpers ----
+
+    private void drawCentered(Batch batch, BitmapFont font, String value, float centerX, float top) {
+        layout.setText(font, value);
+        font.draw(batch, layout, centerX - layout.width / 2f, top);
+    }
+
+    private String text(String key) {
+        return match.getI18n().getBundle().get(key);
+    }
+
+    public Stage getStage() {
+        return stage;
+    }
+
+    @Override
+    public void dispose() {
+        stage.dispose();
+        shapes.dispose();
+        pixel.dispose();
+        nearbyLootWidget.dispose();
     }
 }

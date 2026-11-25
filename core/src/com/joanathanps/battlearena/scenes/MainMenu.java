@@ -1,21 +1,30 @@
 package com.joanathanps.battlearena.scenes;
 
+import com.badlogic.gdx.Application;
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Input;
 import com.badlogic.gdx.Screen;
-import com.badlogic.gdx.graphics.*;
+import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.graphics.GL20;
+import com.badlogic.gdx.graphics.OrthographicCamera;
+import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Stage;
-import com.badlogic.gdx.scenes.scene2d.ui.*;
+import com.badlogic.gdx.scenes.scene2d.ui.ButtonGroup;
+import com.badlogic.gdx.scenes.scene2d.ui.Label;
+import com.badlogic.gdx.scenes.scene2d.ui.Skin;
+import com.badlogic.gdx.scenes.scene2d.ui.Table;
+import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
+import com.badlogic.gdx.scenes.scene2d.ui.TextField;
 import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.utils.Align;
-import com.badlogic.gdx.utils.Timer;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
-import com.joanathanps.battlearena.BattleRoyaleArenaLite;
+import com.joanathanps.battlearena.BattleRoyaleLite;
 import com.joanathanps.battlearena.audio.AudioManager;
-import com.joanathanps.battlearena.database.MatchResultsRepository;
 import com.joanathanps.battlearena.events.InputTracker;
 import com.joanathanps.battlearena.graphics.FontGenerator;
 import com.joanathanps.battlearena.graphics.ResourceHandler;
@@ -23,344 +32,259 @@ import com.joanathanps.battlearena.gui.LeaderboardScreen;
 import com.joanathanps.battlearena.gui.SettingsScreen;
 import com.joanathanps.battlearena.languages.Internationalization;
 import com.joanathanps.battlearena.scheme.Difficulty;
-import com.joanathanps.battlearena.scheme.SystemProps;
+import com.joanathanps.battlearena.scheme.PlayerSettings;
 
-import static com.joanathanps.battlearena.scheme.PhysicsAdapter.pCenter;
 import static com.joanathanps.battlearena.scheme.PlayerSettings.GAME_HEIGHT;
 import static com.joanathanps.battlearena.scheme.PlayerSettings.GAME_WIDTH;
 
+/** Title screen over the parallax island: name, difficulty, play, leaderboard, settings. */
 public class MainMenu implements Screen {
 
-    // game
-    private SpriteBatch batch;
-    private ResourceHandler resources;
-    private Internationalization i18n;
-    private boolean isLoading;
+    private static final Color SELECTED = Color.valueOf("ffd700");
+    private static final Color HINT = new Color(0.92f, 0.92f, 0.92f, 1f);
 
-    // GUI
-    private Skin skin;
-    private Stage stage;
-    private Stage loadingStage;
-    private Texture backgroundP0;
-    private Texture backgroundP1;
-    private Texture backgroundP2;
-    private Texture backgroundP3;
-    private Texture vignette;
-    private Texture logo;
-    private Texture loadingScreen;
-    private Label loadingLabel;
-    private Image gameIcon;
+    private final BattleRoyaleLite game;
+    private final SpriteBatch batch;
+    private final ResourceHandler resources;
+    private final Internationalization i18n = new Internationalization();
 
-    private Difficulty selectedDifficulty = Difficulty.MEDIUM;
-    private ButtonGroup<TextButton> difficultyGroup;
+    private final OrthographicCamera camera = new OrthographicCamera();
+    private final Viewport viewport = new FitViewport(GAME_WIDTH, GAME_HEIGHT, camera);
+    private final Stage stage;
+    private final Stage loadingStage;
 
-    // rendering
-    private OrthographicCamera camera;
-    private Viewport viewport;
+    private final Texture backgroundP0;
+    private final Texture backgroundP1;
+    private final Texture backgroundP2;
+    private final Texture backgroundP3;
+    private final Texture vignette;
+    private final Texture logo;
+    private final Texture loadingScreen;
 
-    public MainMenu(SpriteBatch batch) {
-        this.batch = batch;
-        loadResources();
-        setupCamera();
-        setupCursor();
-        forgeMenu();
-        forgeLoadingScreen();
-        if (SystemProps.getBoolean("bral.autoleaderboard")) {
-            Gdx.app.postRunnable(new Runnable() {
-                @Override
-                public void run() {
-                    BattleRoyaleArenaLite game = (BattleRoyaleArenaLite) Gdx.app.getApplicationListener();
-                    MatchResultsRepository repository = game.getMatchResultsRepository();
-                    if (repository != null) {
-                        game.setScreen(new LeaderboardScreen(repository));
-                    }
-                }
-            });
-        }
-        if (SystemProps.getBoolean("bral.autosettings")) {
-            Gdx.app.postRunnable(new Runnable() {
-                @Override
-                public void run() {
-                    BattleRoyaleArenaLite game = (BattleRoyaleArenaLite) Gdx.app.getApplicationListener();
-                    game.setScreen(new SettingsScreen());
-                }
-            });
-        }
-        if (SystemProps.getBoolean("bral.autodemo")) {
-            String demoDifficulty = SystemProps.getProperty("bral.autodemo.difficulty", "MEDIUM");
-            final Difficulty difficulty = Difficulty.valueOf(demoDifficulty);
-            Gdx.app.postRunnable(new Runnable() {
-                @Override
-                public void run() {
-                    BattleRoyaleArenaLite game = (BattleRoyaleArenaLite) Gdx.app.getApplicationListener();
-                    game.setScreen(new Match(batch, difficulty));
-                }
-            });
-        }
-    }
+    private Difficulty selectedDifficulty = PlayerSettings.getDifficulty();
+    private TextField nameField;
+    private Label difficultyHint;
+    /** Frames drawn since Play was pressed; the match loads once the loading screen is on screen. */
+    private int loadingFrames = -1;
 
-    private void loadResources() {
-        resources = new ResourceHandler();
-        resources.loadMainMenuResources();
+    public MainMenu() {
+        game = BattleRoyaleLite.get();
+        batch = game.getBatch();
+        resources = game.getResources();
         backgroundP0 = resources.getTexture(ResourceHandler.TexturePath.MENU_P0);
         backgroundP1 = resources.getTexture(ResourceHandler.TexturePath.MENU_P1);
         backgroundP2 = resources.getTexture(ResourceHandler.TexturePath.MENU_P2);
         backgroundP3 = resources.getTexture(ResourceHandler.TexturePath.MENU_P3);
         vignette = resources.getTexture(ResourceHandler.TexturePath.VIGNETTE);
         logo = resources.getTexture(ResourceHandler.TexturePath.MENU_LOGO);
-        skin = resources.getSkin(ResourceHandler.SkinPaths.BUTTON_SKIN);
         loadingScreen = resources.getTexture(ResourceHandler.TexturePath.LOADING_SCREEN);
-        gameIcon = new Image(resources.getTexture(ResourceHandler.TexturePath.GAME_ICON));
-        i18n = new Internationalization();
-    }
 
-    private void setupCamera() {
-        camera = new OrthographicCamera();
-        viewport = new FitViewport(GAME_WIDTH, GAME_HEIGHT, camera);
-        viewport.apply();
-        camera.position.set(camera.viewportWidth / 2, camera.viewportHeight / 2, 0);
-        camera.update();
-    }
+        camera.position.set(GAME_WIDTH / 2f, GAME_HEIGHT / 2f, 0);
+        game.useCursor(false);
 
-    private void setupCursor() {
-        Pixmap pixmap = resources.getPixmap(ResourceHandler.PixmapPath.MENU_CURSOR);
-        Gdx.graphics.setCursor(Gdx.graphics.newCursor(pixmap, 0, 0));
-        pixmap.dispose();
-    }
-
-    private void forgeMenu() {
         stage = new Stage(viewport, batch);
-
+        loadingStage = new Stage(viewport, batch);
+        buildMenu();
+        buildLoadingScreen();
         Gdx.input.setInputProcessor(stage);
+    }
+
+    private void buildMenu() {
+        Skin buttons = resources.getSkin(ResourceHandler.SkinPaths.BUTTON_SKIN);
+        Skin window = resources.getSkin(ResourceHandler.SkinPaths.WINDOW_SKIN);
+        Label.LabelStyle caption = new Label.LabelStyle(
+                FontGenerator.generate(ResourceHandler.FontPath.BOMBARD, 18, true), Color.WHITE);
 
         Table table = new Table();
-        table.left().top();
-        table.padTop(210);
         table.setFillParent(true);
+        table.left().top();
+        table.padTop(196).padLeft(GAME_WIDTH / 2f - logo.getWidth() / 2f + 20);
 
-        TextButton playButton = new TextButton(i18n.getBundle().get("play"), skin, "white-button");
-        TextButton leaderboardButton = new TextButton("LEADERBOARD", skin, "white-button");
-        TextButton optionsButton = new TextButton(i18n.getBundle().get("settings"), skin, "white-button");
-        TextButton exitButton = new TextButton(i18n.getBundle().get("quit"), skin, "white-button");
-
-        playButton.addListener(new ClickListener(){
+        table.add(new Label(text("name"), caption)).left().padLeft(10).row();
+        nameField = new TextField(PlayerSettings.getPlayerName(), window);
+        nameField.setMaxLength(PlayerSettings.NAME_MAX_LENGTH);
+        nameField.setTextFieldFilter(new TextField.TextFieldFilter() {
             @Override
-            public void clicked(InputEvent event, float x, float y) {
-                AudioManager.playClick();
-                isLoading = true;
-                Timer.schedule(new Timer.Task(){
-                    @Override
-                    public void run() {
-                        BattleRoyaleArenaLite game = (BattleRoyaleArenaLite)Gdx.app.getApplicationListener();
-                        game.setScreen(new Match(batch, selectedDifficulty));
+            public boolean acceptChar(TextField field, char c) {
+                return Character.isLetterOrDigit(c) || c == ' ' || c == '-' || c == '_';
+            }
+        });
+        table.add(nameField).width(330).height(44).left().padLeft(6).padBottom(14).row();
+
+        table.add(new Label(text("difficulty"), caption)).left().padLeft(10).row();
+        Table difficultyRow = new Table();
+        final ButtonGroup<TextButton> group = new ButtonGroup<TextButton>();
+        group.setMinCheckCount(1);
+        group.setMaxCheckCount(1);
+        for (final Difficulty difficulty : Difficulty.values()) {
+            final TextButton button = new TextButton(difficulty.getLabel(), buttons, "white-button");
+            group.add(button);
+            button.setChecked(difficulty == selectedDifficulty);
+            button.addListener(new ChangeListener() {
+                @Override
+                public void changed(ChangeEvent event, Actor actor) {
+                    if (button.isChecked() && selectedDifficulty != difficulty) {
+                        AudioManager.playClick();
+                        selectedDifficulty = difficulty;
+                        PlayerSettings.setDifficulty(difficulty);
+                        refreshDifficulty(group);
                     }
-                }, 1);
-            }
-        });
-
-        exitButton.addListener(new ClickListener(){
-            @Override
-            public void clicked(InputEvent event, float x, float y) {
-                AudioManager.playClick();
-                Gdx.app.exit();
-            }
-        });
-
-        leaderboardButton.addListener(new ClickListener(){
-            @Override
-            public void clicked(InputEvent event, float x, float y) {
-                AudioManager.playClick();
-                BattleRoyaleArenaLite game = (BattleRoyaleArenaLite)Gdx.app.getApplicationListener();
-                MatchResultsRepository repository = game.getMatchResultsRepository();
-                if (repository != null) {
-                    game.setScreen(new LeaderboardScreen(repository));
                 }
+            });
+            difficultyRow.add(button).padRight(8);
+        }
+        table.add(difficultyRow).left().row();
+        difficultyHint = new Label("", new Label.LabelStyle(
+                FontGenerator.generate(ResourceHandler.FontPath.BOMBARD, 14, true), HINT));
+        table.add(difficultyHint).left().padLeft(10).padBottom(10).row();
+        refreshDifficulty(group);
+
+        addMenuButton(table, buttons, text("play"), new Runnable() {
+            public void run() {
+                startMatch();
             }
         });
-
-        optionsButton.addListener(new ClickListener(){
-            @Override
-            public void clicked(InputEvent event, float x, float y) {
-                AudioManager.playClick();
-                BattleRoyaleArenaLite game = (BattleRoyaleArenaLite)Gdx.app.getApplicationListener();
+        addMenuButton(table, buttons, text("leaderboard"), new Runnable() {
+            public void run() {
+                saveName();
+                game.setScreen(new LeaderboardScreen(game.getMatchResultsRepository()));
+            }
+        });
+        addMenuButton(table, buttons, text("settings"), new Runnable() {
+            public void run() {
+                saveName();
                 game.setScreen(new SettingsScreen());
             }
         });
-
-        TextButton easyButton = new TextButton("EASY", skin, "white-button");
-        TextButton mediumButton = new TextButton("MEDIUM", skin, "white-button");
-        TextButton hardButton = new TextButton("HARD", skin, "white-button");
-
-        difficultyGroup = new ButtonGroup<TextButton>(easyButton, mediumButton, hardButton);
-        difficultyGroup.setMinCheckCount(1);
-        difficultyGroup.setMaxCheckCount(1);
-        mediumButton.setChecked(true);
-        refreshDifficultyButtons(mediumButton);
-
-        easyButton.addListener(new ChangeListener() {
-            @Override
-            public void changed(ChangeEvent event, com.badlogic.gdx.scenes.scene2d.Actor actor) {
-                if (easyButton.isChecked()) {
-                    AudioManager.playClick();
-                    selectedDifficulty = Difficulty.EASY;
-                    refreshDifficultyButtons(easyButton);
+        if (Gdx.app.getType() != Application.ApplicationType.WebGL) {
+            addMenuButton(table, buttons, text("quit"), new Runnable() {
+                public void run() {
+                    Gdx.app.exit();
                 }
-            }
-        });
-        mediumButton.addListener(new ChangeListener() {
-            @Override
-            public void changed(ChangeEvent event, com.badlogic.gdx.scenes.scene2d.Actor actor) {
-                if (mediumButton.isChecked()) {
-                    AudioManager.playClick();
-                    selectedDifficulty = Difficulty.MEDIUM;
-                    refreshDifficultyButtons(mediumButton);
-                }
-            }
-        });
-        hardButton.addListener(new ChangeListener() {
-            @Override
-            public void changed(ChangeEvent event, com.badlogic.gdx.scenes.scene2d.Actor actor) {
-                if (hardButton.isChecked()) {
-                    AudioManager.playClick();
-                    selectedDifficulty = Difficulty.HARD;
-                    refreshDifficultyButtons(hardButton);
-                }
-            }
-        });
-
-        Label difficultyLabel = new Label("DIFFICULTY",
-                new Label.LabelStyle(FontGenerator.generate(ResourceHandler.FontPath.BOMBARD, 18, false), Color.WHITE));
-
-        float leftPad = pCenter(GAME_WIDTH) - pCenter(logo.getWidth()) + 20;
-
-        table.add(playButton).padLeft(leftPad).align(Align.left);
-        table.row().padTop(-8);
-        table.add(leaderboardButton).padLeft(leftPad).align(Align.left);
-        table.row().padTop(-8);
-        table.add(optionsButton).padLeft(leftPad).align(Align.left);
-        table.row().padTop(6);
-        table.add(difficultyLabel).padLeft(leftPad + 10).align(Align.left);
-        table.row().padTop(2);
-
-        Table difficultyTable = new Table();
-        difficultyTable.add(easyButton);
-        difficultyTable.add(mediumButton).padLeft(8);
-        difficultyTable.add(hardButton).padLeft(8);
-        table.add(difficultyTable).padLeft(leftPad).align(Align.left);
-        table.row().padTop(-4);
-        table.add(exitButton).padLeft(leftPad).align(Align.left);
-
+            });
+        }
         stage.addActor(table);
     }
 
-    private void refreshDifficultyButtons(TextButton active) {
-        for (TextButton button : difficultyGroup.getButtons()) {
-            button.setColor(button == active ? Color.valueOf("ffd700") : Color.WHITE);
-        }
+    private void addMenuButton(Table table, Skin skin, String label, final Runnable action) {
+        TextButton button = new TextButton(label, skin, "white-button");
+        button.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                AudioManager.playClick();
+                action.run();
+            }
+        });
+        table.add(button).left().padTop(-6).row();
     }
 
-    private void forgeLoadingScreen() {
-        loadingStage = new Stage(viewport, batch);
+    private void refreshDifficulty(ButtonGroup<TextButton> group) {
+        for (TextButton button : group.getButtons()) {
+            button.setColor(button.isChecked() ? SELECTED : Color.WHITE);
+        }
+        difficultyHint.setText(selectedDifficulty.getBotCount() + " " + text("bots"));
+    }
 
+    private void buildLoadingScreen() {
         Table table = new Table();
-        table.right().bottom();
         table.setFillParent(true);
-
-        table.add(gameIcon).padBottom(70).padRight(5);
-
-        loadingLabel = new Label(i18n.getBundle().get("loading"),
-                new Label.LabelStyle(FontGenerator.generate(ResourceHandler.FontPath.BOMBARD, 42, false), Color.WHITE));
-        table.add(loadingLabel).padBottom(70).padRight(100).row();
-
+        table.right().bottom();
+        table.add(new com.badlogic.gdx.scenes.scene2d.ui.Image(
+                resources.getTexture(ResourceHandler.TexturePath.GAME_ICON))).padBottom(70).padRight(5);
+        table.add(new Label(text("loading"), new Label.LabelStyle(
+                FontGenerator.generate(ResourceHandler.FontPath.BOMBARD, 42, false), Color.WHITE)))
+                .padBottom(70).padRight(100);
         loadingStage.addActor(table);
     }
 
-    private void update(float delta) {
-        camera.update();
+    private void saveName() {
+        PlayerSettings.setPlayerName(nameField.getText());
     }
 
-    @Override
-    public void show() {
-
-    }
-
-    private void renderBackgroundColor() {
-        Gdx.gl.glClearColor(0, 0, 0, 1);
-        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
-    }
-
-    private void renderBackground() {
-        batch.begin();
-        batch.draw(backgroundP0, 0, 0, GAME_WIDTH, GAME_HEIGHT);
-        batch.draw(backgroundP1,
-                pCenter(GAME_WIDTH) - pCenter(backgroundP1.getWidth()) - InputTracker.getRelativeX() / 10,
-                pCenter(GAME_HEIGHT) - pCenter(backgroundP1.getHeight()) + InputTracker.getRelativeY() / 10);
-        batch.draw(logo,
-                pCenter(GAME_WIDTH) - pCenter(logo.getWidth())  - InputTracker.getRelativeX() / 15,
-                GAME_HEIGHT - (GAME_HEIGHT / 3) + 30 + InputTracker.getRelativeY() / 15
-        );
-        batch.draw(backgroundP2,
-                pCenter(GAME_WIDTH) - pCenter(backgroundP2.getWidth() / 2) - InputTracker.getRelativeX() / 30,
-                pCenter(GAME_HEIGHT) - pCenter(backgroundP2.getHeight() / 2) + 450 + InputTracker.getRelativeY() / 30,
-                backgroundP2.getWidth() / 2, backgroundP2.getHeight() / 2
-        );
-        batch.draw(backgroundP3,
-                pCenter(GAME_WIDTH) - pCenter(backgroundP3.getWidth() / 2) + 50 - InputTracker.getRelativeX() / 15,
-                pCenter(GAME_HEIGHT) - pCenter(backgroundP3.getHeight() / 2) + 450 + InputTracker.getRelativeY() / 15,
-                backgroundP3.getWidth() / 2, backgroundP3.getHeight() / 2
-        );
-        batch.draw(vignette, 0, 0, GAME_WIDTH, GAME_HEIGHT);
-        batch.end();
-    }
-
-    private void renderMenu() {
-        stage.act();
-        stage.draw();
-    }
-
-    private void renderLoadingScreen() {
-        if (isLoading) {
-            batch.begin();
-            batch.draw(loadingScreen, 0, 0, GAME_WIDTH, GAME_HEIGHT);
-            batch.end();
-            loadingStage.draw();
+    private void startMatch() {
+        if (loadingFrames < 0) {
+            saveName();
+            loadingFrames = 0;
+            Gdx.input.setInputProcessor(null);
         }
+    }
+
+    private String text(String key) {
+        return i18n.getBundle().get(key);
     }
 
     @Override
     public void render(float delta) {
-        update(delta);
-        renderBackgroundColor();
-        renderBackground();
-        renderMenu();
-        renderLoadingScreen();
+        if (loadingFrames < 0 && Gdx.input.isKeyJustPressed(Input.Keys.ENTER)) {
+            startMatch();
+        }
+
+        Gdx.gl.glClearColor(0, 0, 0, 1);
+        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
+        viewport.apply();
+        batch.setProjectionMatrix(camera.combined);
+
+        if (loadingFrames >= 0) {
+            batch.begin();
+            batch.draw(loadingScreen, 0, 0, GAME_WIDTH, GAME_HEIGHT);
+            batch.end();
+            loadingStage.draw();
+            // Two frames guarantee the loading screen is visible before the blocking load starts.
+            if (++loadingFrames > 2) {
+                game.setScreen(new Match(selectedDifficulty));
+            }
+            return;
+        }
+
+        float mx = InputTracker.getRelativeX() * GAME_WIDTH / Gdx.graphics.getWidth();
+        float my = InputTracker.getRelativeY() * GAME_HEIGHT / Gdx.graphics.getHeight();
+        batch.begin();
+        batch.draw(backgroundP0, 0, 0, GAME_WIDTH, GAME_HEIGHT);
+        batch.draw(backgroundP1,
+                (GAME_WIDTH - backgroundP1.getWidth()) / 2f - mx / 10,
+                (GAME_HEIGHT - backgroundP1.getHeight()) / 2f + my / 10);
+        batch.draw(logo,
+                (GAME_WIDTH - logo.getWidth()) / 2f - mx / 15,
+                GAME_HEIGHT - GAME_HEIGHT / 3f + 30 + my / 15);
+        batch.draw(backgroundP2,
+                (GAME_WIDTH - backgroundP2.getWidth() / 2f) / 2f - mx / 30,
+                (GAME_HEIGHT - backgroundP2.getHeight() / 2f) / 2f + 450 + my / 30,
+                backgroundP2.getWidth() / 2f, backgroundP2.getHeight() / 2f);
+        batch.draw(backgroundP3,
+                (GAME_WIDTH - backgroundP3.getWidth() / 2f) / 2f + 50 - mx / 15,
+                (GAME_HEIGHT - backgroundP3.getHeight() / 2f) / 2f + 450 + my / 15,
+                backgroundP3.getWidth() / 2f, backgroundP3.getHeight() / 2f);
+        batch.draw(vignette, 0, 0, GAME_WIDTH, GAME_HEIGHT);
+        batch.end();
+
+        stage.act(delta);
+        stage.draw();
     }
 
     @Override
     public void resize(int width, int height) {
-        viewport.update(width, height);
-        camera.position.set(camera.viewportWidth / 2, camera.viewportHeight / 2, 0);
-        camera.update();
+        viewport.update(width, height, true);
+    }
+
+    @Override
+    public void show() {
     }
 
     @Override
     public void pause() {
-
     }
 
     @Override
     public void resume() {
-
     }
 
     @Override
     public void hide() {
-
     }
 
     @Override
     public void dispose() {
-        skin.dispose();
-        resources.dispose();
+        stage.dispose();
+        loadingStage.dispose();
     }
 }
