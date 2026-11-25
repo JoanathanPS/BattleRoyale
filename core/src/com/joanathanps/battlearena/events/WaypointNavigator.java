@@ -78,7 +78,7 @@ public class WaypointNavigator {
         // If the direct path is clear, no detour needed
         if (hasLineOfSight(from, to)) return to;
 
-        // Path is blocked — find the best entry-point waypoint
+        // Path is blocked â€” find the best entry-point waypoint
         NavigationWaypoint best = findBestWaypoint(from, to);
         if (best != null) {
             // If the bot has already reached the best waypoint, fall
@@ -89,7 +89,7 @@ public class WaypointNavigator {
             return best.getPosition();
         }
 
-        // No waypoints registered or none helpful — fall back to target
+        // No waypoints registered or none helpful â€” fall back to target
         return to;
     }
 
@@ -113,7 +113,7 @@ public class WaypointNavigator {
             // Dot-product check: skip waypoints that are behind us
             Vector2 toWp = new Vector2(wpPos).sub(from).nor();
             float dot = toDir.dot(toWp);
-            if (dot < -0.2f) continue; // more than ~100° off — skip
+            if (dot < -0.2f) continue; // more than ~100Â° off â€” skip
 
             float cost = from.dst(wpPos) + wpPos.dst(to);
             if (cost < bestCost) {

@@ -4,7 +4,7 @@ import com.badlogic.gdx.math.Vector2;
 
 /**
  * A named position in the world that the AI uses as an intermediate
- * routing point — typically a building entry/door location.
+ * routing point â€” typically a building entry/door location.
  */
 public class NavigationWaypoint {
 
